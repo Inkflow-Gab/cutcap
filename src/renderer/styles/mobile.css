@@ -1,0 +1,268 @@
+/*
+ * Phone and tablet layout for the Android build.
+ *
+ * The desktop editor is a four column grid built around a pointer and a 27 inch screen. A
+ * phone has neither: one column, a drawer for the library, the inspector in a sheet, and
+ * thumb sized targets. Everything below is scoped to coarse pointers and narrow screens, so
+ * a tablet with a keyboard, and every desktop window, keeps the layout the app was designed
+ * with. Nothing here changes what the editor does, only where the panels sit.
+ */
+
+/* Touch devices: no hover to reveal affordances, no text selection, no 300ms tap delay. */
+@media (pointer: coarse) {
+  button, .iconbtn, .chip, .seg button, .tabs button, .rail button, .textbtn, .export, .home-shape, .home-card {
+    touch-action: manipulation;
+  }
+  /* Things desktop reveals on hover are always visible on a phone, dimmed until used. */
+  .tile-add, .tile-remove, .tl-head-tools { opacity: 1; }
+  .clip { cursor: default; }
+  /* A 30px icon button is a hard tap; give every control a real target. */
+  .iconbtn { width: 40px; height: 40px; }
+  .iconbtn.sm { width: 30px; height: 30px; }
+  .export { height: 36px; padding: 0 16px; }
+  .textbtn { padding: 9px 10px; }
+  .seg button { padding: 9px 10px; }
+  .tabs button { padding: 11px 12px 12px; }
+  .switch { width: 42px; height: 25px; border-radius: 13px; }
+  .switch::after { width: 19px; height: 19px; }
+  .switch.on::after { transform: translateX(17px); }
+  .slider { height: 28px; }
+  .slider-track, .slider-fill { top: 13px; }
+  .slider-knob { top: 5px; width: 18px; height: 18px; margin-left: -9px; }
+  .chip { padding: 7px 12px; }
+  .swatch { width: 30px; height: 30px; }
+  /* The timeline is dragged with a finger, so a clip's body is one big grab area. */
+  .tl-bar { padding: 8px 10px; }
+  .tl-ruler-row { height: 32px; }
+  .tl-head { width: 104px; }
+  .tl-corner { width: 104px; }
+}
+
+/* ---------- phones and small tablets, portrait and landscape */
+
+@media (max-width: 820px) {
+  :root {
+    /* Safe areas, filled by the Android activity's inset listener. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  body { font-size: 13.5px; }
+
+  /* --- home */
+  .home-bar {
+    height: 56px;
+    padding: 0 12px;
+    padding-top: var(--safe-top);
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    box-sizing: content-box;
+  }
+  /* A phone has no window controls to leave room for. */
+  :root[data-platform="android"] .home-bar { padding-left: calc(12px + var(--safe-left)); padding-right: calc(12px + var(--safe-right)); }
+  .home-bar .credit { display: none; }
+  .home-main { padding: 18px 14px 40px; }
+  .home-shapes { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+  .home-shape { min-height: 112px; }
+  .home-hint { display: none; }
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 14px 12px !important; }
+  .home-projects h2 { margin-top: 26px; }
+  /* The "..." on a project card is hover-only on desktop; a phone cannot hover. */
+  .home-more { opacity: 1; width: 34px; height: 34px; }
+
+  /* --- editor: one column, viewer on top, timeline at the bottom */
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: calc(52px + var(--safe-top)) minmax(0, 44%) minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "viewer"
+      "tl";
+    gap: 1px;
+  }
+  .top, :root[data-platform="android"] .top, :root[data-platform="darwin"] .top, :root[data-platform="win32"] .top, :root[data-platform="linux"] .top {
+    padding: 0 6px 0 10px;
+    padding-top: var(--safe-top);
+    height: auto;
+    min-height: calc(52px + var(--safe-top));
+    gap: 8px;
+    box-sizing: border-box;
+  }
+  .top .proj-name { max-width: 34vw; }
+  .top .saved { display: none; }
+  /* Undo, redo, history and ratio live in the command bar on a phone; the top bar keeps
+     the essentials: back home, project name, export, and the library button below. */
+  .top .ratio { display: none; }
+  .top-actions { gap: 2px; }
+  .top-actions .iconbtn[title^="Undo"], .top-actions .iconbtn[title^="Redo"] { display: none; }
+  .agent-chip-wrap { display: none; }
+
+  .viewer { grid-area: viewer; }
+  .viewer-stage { padding: 8px 10px 4px; }
+  .viewer-controls { padding: 0 10px calc(6px + var(--safe-bottom)); gap: 6px; }
+  .viewer-controls .tc { font-size: 12px; }
+  .viewer-right .iconbtn { width: 36px; height: 36px; }
+  .play { width: 44px; height: 44px; }
+
+  /* The library becomes a bottom sheet: a tab row that slides up over the timeline. */
+  .rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    height: calc(58px + var(--safe-bottom));
+    padding: 0 2px var(--safe-bottom);
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--chrome);
+    border-top: 1px solid var(--line);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail button { width: auto; min-width: 60px; height: 52px; flex: none; font-size: 10.5px; }
+  .rail-bead { display: none; }
+
+  /* Panels open above the rail as a sheet, so choosing a clip effect does not hide the
+     timeline. `--sheet` height keeps the viewer visible behind it. */
+  .lib {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(58px + var(--safe-bottom));
+    height: min(52vh, 460px);
+    z-index: 29;
+    background: var(--pane);
+    border-top: 1px solid var(--line-strong);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.28s var(--ease-out);
+  }
+  /* The panel is only as tall as what is in it when it is short. */
+  .lib .media-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .panel-head { padding: 10px 12px 8px 14px; }
+  .panel-head h2 { font-size: 14px; }
+  .text-grid, .fx-grid { gap: 10px; }
+
+  /* The inspector is a full sheet over everything, opened from the timeline's tools. */
+  .insp {
+    position: fixed;
+    inset: 0;
+    z-index: 34;
+    background: var(--pane);
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    transform: translateY(100%);
+    transition: transform 0.3s var(--ease-out);
+    visibility: hidden;
+  }
+  .editor[data-sheet="insp"] .insp { transform: translateY(0); visibility: visible; }
+  .insp .tabs { overflow-x: auto; scrollbar-width: none; }
+  .insp .tabs::-webkit-scrollbar { display: none; }
+  .insp-body { padding-bottom: 90px; }
+
+  /* Opening the inspector's sheet from the timeline. */
+  .phone-fab {
+    position: fixed;
+    right: 14px;
+    bottom: calc(136px + var(--safe-bottom));
+    z-index: 22;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 20px;
+    background: #2a2a2e;
+    color: var(--ink);
+    box-shadow: var(--shadow-lift);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .phone-fab:active { transform: scale(0.96); }
+
+  /* The library sheet slides in and out instead of appearing. */
+  .lib[data-open="false"] { transform: translateY(calc(100% + 60px)); pointer-events: none; }
+
+  /* The inspector's own close row: a Done button, added by the app. */
+  .insp-close {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    padding-top: calc(10px + var(--safe-top));
+    border-bottom: 1px solid var(--line);
+    background: var(--chrome);
+  }
+  .insp-close b { font-size: 15px; font-weight: 600; }
+  .insp-close .export { height: 34px; }
+
+  /* --- timeline */
+  .tl { padding-bottom: calc(58px + var(--safe-bottom)); }
+  .tl-bar .zoom { display: none; }
+  .tl-bar .textbtn { font-size: 12px; }
+  .tl-ruler-canvas { }
+  /* A ruler that is a sentence tall and a playhead with a head you can see. */
+  .tl-playhead::after { width: 15px; height: 17px; margin-left: -7.5px; }
+
+  /* --- dialogs become sheets that fit the screen */
+  .modal-back { align-items: end; padding: 0; }
+  .modal, .modal-wide, .modal-narrow {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100vh - var(--safe-top) - 28px);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: var(--safe-bottom);
+    animation: sheet-in 0.3s var(--ease-out);
+  }
+  @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+  .modal-body { padding: 10px 16px 18px; }
+  .modal-actions { flex-wrap: wrap; }
+  .modal-actions .export, .modal-actions .textbtn { flex: 1; justify-content: center; height: 42px; }
+  .modal[aria-label="Export"] { max-height: calc(100vh - var(--safe-top)); }
+
+  /* Fields get a full-width layout instead of label / control / value columns. */
+  .field { grid-template-columns: minmax(0, 1fr) 76px; gap: 8px 10px; }
+  .field-value, .field-input { min-width: 44px; }
+  .modal-row { grid-template-columns: 1fr; gap: 4px; }
+
+  .news-popup, .inbox-panel, .update-notice { width: calc(100vw - 24px); }
+  .update-notice { left: 12px; bottom: calc(12px + 58px + var(--safe-bottom)); }
+  .inbox-panel { max-height: 70vh; }
+  .font-list { max-height: 46vh; }
+  /* Toasts sit above the library rail rather than under the thumb, where the playhead is. */
+  .toasts { bottom: calc(70px + var(--safe-bottom)); width: calc(100vw - 24px); }
+  .toast { max-width: 100%; }
+  .ctx-menu { font-size: 14.5px; min-width: 240px; }
+  .ctx-menu button { padding: 13px 14px; }
+}
+
+/* Landscape phones: the viewer needs the height, the timeline can give some up. */
+@media (max-width: 820px) and (orientation: landscape) {
+  .editor {
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: calc(48px + var(--safe-top)) minmax(0, 1fr) minmax(120px, 34%);
+    grid-template-areas:
+      "top top"
+      "viewer viewer"
+      "tl tl";
+  }
+  .lib { height: min(70vh, 380px); }
+  .rail { height: calc(50px + var(--safe-bottom)); }
+  .rail button { height: 44px; min-width: 54px; }
+  .tl { padding-bottom: calc(50px + var(--safe-bottom)); }
+}
+
+/* Tablets: keep two panes, the console can breathe. */
+@media (min-width: 821px) and (pointer: coarse) {
+  .editor {
+    grid-template-columns: 72px minmax(220px, 280px) minmax(0, 1fr) minmax(240px, 300px);
+  }
+  .rail button { width: 72px; height: 60px; }
+}

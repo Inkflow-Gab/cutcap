@@ -1,0 +1,108 @@
+apply plugin: 'com.android.application'
+
+// Version and signing come from the environment: CI sets them from the repository secrets,
+// a local build gets sensible defaults, and a release built without keys stays unsigned.
+
+// Signing comes from the environment so a fork can build without secrets and CI can sign
+// with repository secrets. Without them the release APK is unsigned and still installable
+// only after signing; the debug build needs no keys at all.
+def keystorePath = System.getenv("OPENROLL_KEYSTORE")
+def hasSigning = keystorePath != null && new File(keystorePath).exists()
+
+android {
+    namespace = "app.openroll.mobile"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "app.openroll.mobile"
+        minSdk = rootProject.ext.minSdkVersion
+        targetSdk = rootProject.ext.targetSdkVersion
+        versionCode = (System.getenv("OPENROLL_VERSION_CODE") ?: "1") as Integer
+        versionName = System.getenv("OPENROLL_VERSION_NAME") ?: "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        resourceConfigurations += ["en"]
+        aaptOptions {
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:!*.map'
+        }
+    }
+    signingConfigs {
+        if (hasSigning) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("OPENROLL_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("OPENROLL_KEY_ALIAS")
+                keyPassword System.getenv("OPENROLL_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            // Debug APKs are for trying things; they stay unshrunk so stack traces are readable.
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasSigning) signingConfig signingConfigs.release
+        }
+    }
+    // One APK per phone architecture: the WebView WASM and native libs are the bulk, and a
+    // phone only ever needs its own. Also produces a universal APK for sideloading anywhere.
+    splits {
+        abi {
+            enable true
+            reset()
+            include "arm64-v8a", "armeabi-v7a", "x86_64"
+            universalApk true
+        }
+    }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        resources {
+            excludes += ["META-INF/*.kotlin_module", "META-INF/AL2.0", "META-INF/LGPL2.1"]
+        }
+    }
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+repositories {
+    flatDir {
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-ktx:1.17.0"
+    implementation "androidx.lifecycle:lifecycle-runtime:2.7.0"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch (Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
