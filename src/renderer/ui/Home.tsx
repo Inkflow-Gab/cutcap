@@ -6,7 +6,10 @@ import { HistoryDialog } from "./HistoryDialog";
 import { Icon } from "./kit/Icon";
 import { Credit } from "./Credit";
 import logo from "../assets/logo.png?url";
-import { InboxButton } from "./Inbox";
+import { InboxButton, InboxPanel } from "./Inbox";
+import { PhoneHome } from "./PhoneHome";
+import { useLayout } from "../lib/layout";
+import { SettingsDialog } from "./SettingsDialog";
 
 interface Props {
   onOpen(project: Project, path: string): void;
@@ -26,6 +29,9 @@ export function Home({ onOpen, onNew }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; project: RecentProject } | null>(null);
   const [history, setHistory] = useState<RecentProject | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const phone = useLayout().phone;
 
   useEffect(() => {
     void window.openroll.projects.list().then(setProjects);
@@ -56,6 +62,36 @@ export function Home({ onOpen, onNew }: Props) {
     setDragging(false);
     const files = await window.openroll.pathsForDropped([...e.dataTransfer.files]);
     if (files.length) onNew(files);
+  }
+
+  if (phone) {
+    return (
+      <>
+        <PhoneHome
+          projects={projects}
+          onOpen={p => void open(p)}
+          onNew={onNew}
+          onSettings={() => setSettingsOpen(true)}
+          onInbox={() => setInboxOpen(true)}
+        />
+        {inboxOpen && (
+          <div className="phome-inbox" onClick={() => setInboxOpen(false)}>
+            <div onClick={e => e.stopPropagation()}>
+              <InboxPanel />
+            </div>
+          </div>
+        )}
+        {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+        {history && (
+          <HistoryDialog
+            path={history.path}
+            name={history.name}
+            onClose={() => setHistory(null)}
+            onRestored={() => setHistory(null)}
+          />
+        )}
+      </>
+    );
   }
 
   return (

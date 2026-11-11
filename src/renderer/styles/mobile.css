@@ -172,8 +172,9 @@
   .phone-fab {
     position: fixed;
     right: 14px;
-    bottom: calc(136px + var(--safe-bottom));
-    z-index: 22;
+    /* Above the editing toolbar, which now owns the strip above the rail. */
+    bottom: calc(196px + var(--safe-bottom));
+    z-index: 26;
     height: 40px;
     padding: 0 16px;
     border: 1px solid var(--line-strong);
@@ -204,7 +205,8 @@
   .insp-close .export { height: 34px; }
 
   /* --- timeline */
-  .tl { padding-bottom: calc(58px + var(--safe-bottom)); }
+  /* Room for the rail plus the editing toolbar that sits on top of it. */
+  .tl { padding-bottom: calc(110px + var(--safe-bottom)); }
   .tl-bar .zoom { display: none; }
   .tl-bar .textbtn { font-size: 12px; }
   .tl-ruler-canvas { }
@@ -237,7 +239,8 @@
   .inbox-panel { max-height: 70vh; }
   .font-list { max-height: 46vh; }
   /* Toasts sit above the library rail rather than under the thumb, where the playhead is. */
-  .toasts { bottom: calc(70px + var(--safe-bottom)); width: calc(100vw - 24px); }
+  /* Clear of the rail and the editing toolbar. */
+  .toasts { bottom: calc(120px + var(--safe-bottom)); width: calc(100vw - 24px); }
   .toast { max-width: 100%; }
   .ctx-menu { font-size: 14.5px; min-width: 240px; }
   .ctx-menu button { padding: 13px 14px; }
@@ -256,7 +259,7 @@
   .lib { height: min(70vh, 380px); }
   .rail { height: calc(50px + var(--safe-bottom)); }
   .rail button { height: 44px; min-width: 54px; }
-  .tl { padding-bottom: calc(50px + var(--safe-bottom)); }
+  .tl { padding-bottom: calc(102px + var(--safe-bottom)); }
 }
 
 /* Tablets: keep two panes, the console can breathe. */
@@ -265,4 +268,329 @@
     grid-template-columns: 72px minmax(220px, 280px) minmax(0, 1fr) minmax(240px, 300px);
   }
   .rail button { width: 72px; height: 60px; }
+}
+
+/* ---------- phone home screen
+ *
+ * The desktop home is a marketing page: two large choices and a grid of projects. A phone's home
+ * is the launchpad for the app, so it leads with one unmissable action and keeps the tools a tab
+ * away, with a bottom bar for the three places worth being.
+ */
+@media (max-width: 820px) {
+  .phome {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--pane-1);
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .phome-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(var(--safe-top) + 10px) 16px 8px;
+    flex: none;
+  }
+  .phome-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 650;
+    font-size: 16.5px;
+    letter-spacing: -0.02em;
+  }
+  .phome-brand svg { color: var(--accent); }
+  .phome-bar-actions { display: flex; gap: 4px; }
+  .phome-icon {
+    position: relative;
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 10px;
+    background: transparent; color: var(--ink-2);
+    cursor: pointer;
+  }
+  .phome-icon:active { background: var(--pane-2); }
+  .phome-dot {
+    position: absolute; top: 9px; right: 9px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .phome-main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 16px calc(18px + var(--safe-bottom) + 58px);
+  }
+
+  /* One large target: the thing this screen is for. */
+  .phome-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    padding: 26px 16px;
+    margin: 8px 0 22px;
+    border: 0;
+    border-radius: 18px;
+    background: linear-gradient(150deg, #2c5fd4 0%, #4b8bf5 55%, #6aa4ff 100%);
+    color: #fff;
+    cursor: pointer;
+  }
+  .phome-new:active { transform: scale(0.985); }
+  .phome-new-plus {
+    display: grid; place-items: center;
+    width: 46px; height: 46px;
+    margin-bottom: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .phome-new b { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+  .phome-new small { font-size: 12.5px; opacity: 0.86; }
+
+  .phome-recent h2, .phome-tools h2, .phome-me h2 {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 10px;
+    font-size: 14px; font-weight: 600;
+    color: var(--ink-2);
+    text-transform: none;
+  }
+  .phome-count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--pane-2);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .phome-empty, .phome-hint, .phome-version {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-3, var(--ink-2));
+  }
+  .phome-error { color: var(--danger, #f05a5a); font-size: 13px; }
+
+  /* Projects: a list, because a grid of thumbnails wastes a narrow screen. */
+  .phome-list { display: grid; gap: 8px; }
+  .phome-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-2);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .phome-card:active { background: var(--pane-3); }
+  .phome-card > svg { color: var(--ink-3, var(--ink-2)); flex: none; }
+  .phome-thumb {
+    flex: none;
+    width: 62px; height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    display: block;
+  }
+  .phome-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .phome-card-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .phome-card-text b { font-size: 14.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .phome-card-text small { font-size: 12px; color: var(--ink-2); }
+
+  /* Tools: a grid of thumb sized squares, the shape a phone editor uses for its actions. */
+  .phome-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .phome-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 84px;
+    padding: 11px 4px 8px;
+    border: 0;
+    border-radius: 13px;
+    background: var(--pane-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .phome-tool:active { background: var(--pane-3); }
+  .phome-tool-icon {
+    display: grid; place-items: center;
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--pane-3);
+    color: var(--accent);
+  }
+  .phome-tool-label {
+    font-size: 11.5px;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .phome-tool small { font-size: 10.5px; color: var(--ink-3, var(--ink-2)); }
+
+  .phome-me .phome-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 15px 14px;
+    margin-bottom: 8px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-2);
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .phome-row span { flex: 1; text-align: left; }
+  .phome-row > svg:first-child { color: var(--accent); }
+
+  .phome-tabs {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(56px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: color-mix(in srgb, var(--pane-1) 92%, transparent);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--line);
+  }
+  .phome-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+  .phome-tab.on { color: var(--accent); }
+
+  .phome-inbox {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .phome-inbox > div { width: 100%; max-width: 420px; }
+}
+
+/* ---------- phone editing toolbar
+ *
+ * The six actions a person reaches for while cutting, along the bottom where a thumb is. The
+ * desktop reaches these through the keyboard, which a phone does not have.
+ */
+@media (max-width: 820px) {
+  .phone-tools {
+    position: fixed;
+    left: 0; right: 0;
+    /* Directly above the library rail, which remains the app's bottom bar. Below the
+       library sheet's z-index, so opening a panel covers it instead of stacking on top. */
+    bottom: calc(58px + var(--safe-bottom));
+    z-index: 24;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    background: color-mix(in srgb, var(--pane-1) 94%, transparent);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  .phone-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 50px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .phone-tool:disabled { opacity: 0.34; }
+  .phone-tool:not(:disabled):active { background: var(--pane-2); color: var(--ink); }
+  .phone-tool-danger:not(:disabled) { color: #f07575; }
+
+  .phone-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .phone-sheet {
+    width: 100%;
+    padding: 20px 18px calc(20px + var(--safe-bottom));
+    border-radius: 18px 18px 0 0;
+    background: var(--pane-2);
+    color: var(--ink);
+  }
+  .phone-sheet h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+  .phone-speed-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .phone-speed {
+    padding: 15px 0;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-3);
+    color: var(--ink);
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .phone-speed:active { background: var(--accent); color: var(--accent-ink); }
+  .phone-sheet-note { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+  .phone-sheet-close {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    border: 0; border-radius: 12px;
+    background: var(--pane-3);
+    color: var(--ink-2);
+    font-size: 14.5px;
+    cursor: pointer;
+  }
+}
+
+/* The empty preview on a phone offers a button, because there is nothing to drag. */
+@media (max-width: 820px) {
+  .viewer-empty-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 22px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 15px;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .viewer-empty-add:active { transform: scale(0.97); }
+  .viewer-empty-note {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
 }

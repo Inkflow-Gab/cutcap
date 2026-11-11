@@ -40,7 +40,7 @@ export function InboxButton() {
   );
 }
 
-function InboxPanel() {
+export function InboxPanel() {
   useInbox();
   const entries = inbox.entries();
   return (

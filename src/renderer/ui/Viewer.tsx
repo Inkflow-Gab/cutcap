@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Player } from "../../engine/player";
 import { useEditor, useFrame } from "../lib/hooks";
+import { useLayout } from "../lib/layout";
 import { timecode } from "../lib/format";
 import type { Editor } from "../state/editor";
 import { useSettings } from "../state/settings";
+import { importFiles } from "../state/importer";
 import { QUALITY_SCALE } from "../../shared/settings";
 import { Icon } from "./kit/Icon";
 import { ToolBoxes } from "./ToolBoxes";
@@ -20,6 +22,7 @@ export function Viewer({ editor }: { editor: Editor }) {
   const [playing, setPlaying] = useState(false);
   const settings = useEditor(editor, e => e.project.settings);
   const prefs = useSettings();
+  const phone = useLayout().phone;
   const empty = useEditor(editor, e => !e.project.tracks.some(t => t.items.length));
   const [noGpu, setNoGpu] = useState(false);
 
@@ -101,11 +104,29 @@ export function Viewer({ editor }: { editor: Editor }) {
               </p>
             </div>
           ) : (
-            empty && (
-              <div className="viewer-empty">
-                <p>Drop clips here or on the timeline</p>
-              </div>
-            )
+            empty &&
+              // A phone has no drag and drop, so the empty state offers the only thing that
+              // works there: a button that opens the picker.
+              (phone ? (
+                <div className="viewer-empty">
+                  <button
+                    className="viewer-empty-add"
+                    onClick={() => {
+                      void window.openroll.pickMedia().then(async f => {
+                        if (f.length) await importFiles(editor, f);
+                      });
+                    }}
+                  >
+                    <Icon name="plus" size={20} />
+                    Add clips
+                  </button>
+                  <p className="viewer-empty-note">Photos, video or audio from this phone</p>
+                </div>
+              ) : (
+                <div className="viewer-empty">
+                  <p>Drop clips here or on the timeline</p>
+                </div>
+              ))
           )}
           <SafeZones width={box.w} height={box.h} />
           <TransformBox editor={editor} width={box.w} height={box.h} />

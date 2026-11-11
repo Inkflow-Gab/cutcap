@@ -19,6 +19,7 @@ import { ExportDialog } from "./ExportDialog";
 import { ShortcutSheet } from "./ShortcutSheet";
 import { CommandBar } from "./CommandBar";
 import { HistoryPanel } from "./HistoryPanel";
+import { PhoneTools } from "./PhoneTools";
 import { VersionsDialog } from "./VersionsDialog";
 import { agentContext } from "../agent/host";
 import { useLayout } from "../lib/layout";
@@ -66,6 +67,7 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
         </button>
       )}
       <Timeline editor={editor} cache={cache} />
+      {phone && <PhoneTools editor={editor} />}
       <Toasts editor={editor} />
       <ShortcutSheet />
       <CommandBar editor={editor} hooks={{ onExport: () => setExporting(true) }} />
