@@ -140,8 +140,9 @@ jobs:
           # installs fine but fails Play upload validation.
           APK=apk/motion-release.apk
           [ -f "$APK" ] || APK=apk/motion-debug.apk
-          # apksigner lives in build-tools and is not put on PATH by setup-android, so find it.
           SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          AAPT=$(find "$SDK_ROOT/build-tools" -name aapt2 | sort -V | tail -1)
+          # apksigner lives in build-tools and is not put on PATH by setup-android, so find it.
           APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner | sort -V | tail -1)
           echo "apksigner: ${APKSIGNER:-not found}"
           if [ -n "$APKSIGNER" ]; then
@@ -178,6 +179,19 @@ jobs:
               exit 1
             fi
           done
+          # The APK's identity is the thing a rename can silently miss: a stale
+          # applicationId still installs, just as a second app.
+          BADGING=$("$AAPT" dump badging "$APK" 2>/dev/null | head -1 || true)
+          echo "$BADGING"
+          case "$BADGING" in
+            *"package: name='com.motion.official'"*) ;;
+            *) echo "::error ::APK package is not com.motion.official: $BADGING"; exit 1 ;;
+          esac
+          case "$BADGING" in
+            *"application-label:'Motion'"*) ;;
+            *) echo "::error ::APK label is not Motion: $BADGING"; exit 1 ;;
+          esac
+
           echo "web assets complete"
           if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/motion-release.apk ]; then
             echo "signed with the release keystore" >> "$GITHUB_STEP_SUMMARY"
