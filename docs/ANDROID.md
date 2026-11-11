@@ -1,15 +1,15 @@
 # Android
 
-OpenRoll runs on Android as a Capacitor app. The renderer is the same React tree the desktop
+Motion (formerly OpenRoll) runs on Android as a Capacitor app. The renderer is the same React tree the desktop
 build uses; what changes is the layer under `window.openroll`.
 
 | | Desktop | Android |
 |---|---|---|
 | Shell | Electron | Capacitor 8 + WebView |
-| `window.openroll` | IPC to `src/main` | `OpenRollNativePlugin` over the bridge |
-| Media bytes | `file://`, with ffmpeg as a decoder | `MediaRangeClient` on `/openroll-media/`, WebCodecs only |
+| `window.openroll` | IPC to `src/main` | `MotionNativePlugin` over the bridge |
+| Media bytes | `file://`, with ffmpeg as a decoder | `MediaRangeClient` on `/motion-media/`, WebCodecs only |
 | Convert / export | ffmpeg | not present; WebCodecs encode only |
-| Projects | folder on disk | app-private `filesDir/openroll/projects` |
+| Projects | folder on disk | app-private `filesDir/motion/projects` |
 
 ## Building an APK
 
@@ -21,13 +21,14 @@ npm run android:sync          # web bundle + cap sync
 cd android && ./gradlew assembleRelease
 ```
 
-The APK lands in `android/app/build/outputs/apk/release/`. It is signed with the debug keystore
+The package is `com.motion.official` and the launcher label is Motion; CI fails the build if the
+packaged APK says anything else. The APK lands in `android/app/build/outputs/apk/release/`. It is signed with the debug keystore
 unless `OPENROLL_KEYSTORE`, `OPENROLL_KEYSTORE_PASSWORD`, `OPENROLL_KEY_ALIAS` and
 `OPENROLL_KEY_PASSWORD` are set; a debug-signed release installs fine but Play rejects it.
 
 CI (`.github/workflows/android-apk.yml`) builds the same APK on every push that touches the
 Android layer, unpacks it, fails if any worker or the audio worklet is missing, and uploads it as
-the `openroll-apk` artifact. A manual run also builds the unshrunk debug APK.
+the `motion-apk` artifact. A manual run also builds the unshrunk debug APK.
 
 ## Checks that run without the Android SDK
 
@@ -60,7 +61,7 @@ DSP runs as WebAssembly in the WebView, so a single APK installs on every archit
 ```
 filesDir/openroll/
   media/       imported clips, recordings
-  projects/    *.openroll, plus a .thumb next to each
+  projects/    *.motion, plus a .thumb next to each
   cache/       generated sound effects and derived files (Clear cache keeps sfx-*.wav)
   journal/     undo history, per project
   versions/    saved project versions, per project

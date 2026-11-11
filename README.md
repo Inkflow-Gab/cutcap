@@ -104,7 +104,7 @@ Tests, packaging and the code style are in [CONTRIBUTING.md](CONTRIBUTING.md).
 ### Android
 
 The APK is built by CI on every push that touches the Android layer, and is attached to the run as
-the `openroll-apk` artifact. To build one locally you need a JDK 21 and the Android SDK 36:
+the `motion-apk` artifact. To build one locally you need a JDK 21 and the Android SDK 36:
 
 ```sh
 npm ci --ignore-scripts
