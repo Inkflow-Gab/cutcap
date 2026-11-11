@@ -33,11 +33,15 @@ public class MediaRangeClient extends BridgeWebViewClient {
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
         Uri url = request.getUrl();
-        String path = url.getPath();
+        // getEncodedPath(), not getPath(): getPath() is already decoded, and decoding it again
+        // corrupts any file whose name contains a percent sign (a share from another app can
+        // easily be named "100% done.mp4"), which then reads as missing.
+        String path = url.getEncodedPath();
         if (path == null || !path.startsWith(PREFIX)) {
             return super.shouldInterceptRequest(view, request);
         }
-        File file = new File(Uri.decode(path.substring(PREFIX.length())));
+        String relative = path.substring(PREFIX.length());
+        File file = new File(Uri.decode(relative));
         if (!file.isFile()) return notFound();
 
         String range = request.getRequestHeaders().get("Range");

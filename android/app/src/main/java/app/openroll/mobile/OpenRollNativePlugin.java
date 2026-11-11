@@ -124,11 +124,23 @@ public class OpenRollNativePlugin extends Plugin {
 
     // ---------------------------------------------------------------- picking
 
+    /**
+     * The MIME types the editor can actually open, mirroring MEDIA_EXT in src/main/main.ts. A
+     * phone picker with a wildcard type shows every file on the device, most of which the editor
+     * will refuse; narrowing it here means the wrong choice is never offered.
+     */
+    private static final String[] MEDIA_TYPES = {
+        "video/*", "audio/*", "image/*",
+        // Containers Android does not tag as video/* but which decoders handle.
+        "application/ogg", "application/x-matroska", "application/vnd.apple.mpegurl",
+    };
+
     @PluginMethod
     public void pickMedia(PluginCall call) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, MEDIA_TYPES);
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         startActivityForResult(call, intent, "pickedMedia");
@@ -148,14 +160,19 @@ public class OpenRollNativePlugin extends Plugin {
         }
         io.execute(() -> {
             JSArray files = new JSArray();
+            int failed = 0;
             for (Uri uri : uris) {
                 try {
                     files.put(importUri(uri));
                 } catch (Exception e) {
                     // One unreadable pick must not lose the rest.
+                    failed++;
                 }
             }
-            call.resolve(new JSObject().put("files", files));
+            JSObject out = new JSObject().put("files", files);
+            // A whole batch that failed must not look like the person cancelled the picker.
+            if (failed > 0) out.put("failed", failed);
+            call.resolve(out);
         });
     }
 
