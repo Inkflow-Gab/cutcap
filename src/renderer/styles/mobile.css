@@ -594,3 +594,38 @@
     color: var(--ink-2);
   }
 }
+
+/* ---------- offline notice
+ *
+ * The editor is local, so being offline changes nothing; the banner says so once instead of
+ * letting a panel sit on a request that will never finish.
+ */
+.offline-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  top: calc(8px + var(--safe-top));
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--pane-2);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.offline-banner svg { color: #e0a33a; flex: none; }
+.offline-banner span { flex: 1; }
+.offline-banner button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink-2);
+  cursor: pointer;
+}

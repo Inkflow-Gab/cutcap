@@ -13,6 +13,7 @@ import { HistoryDialog } from "./HistoryDialog";
 import { Home } from "./Home";
 import { Overlays } from "./Overlays";
 import { RecoveryPrompt } from "./RecoveryPrompt";
+import { OfflineBanner } from "./OfflineBanner";
 
 export function App() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -118,6 +119,7 @@ export function App() {
     <>
       {editor ? <EditorView key={editor.project.id} editor={editor} onClose={close} /> : <Home onOpen={open} onNew={(files, shape) => open(createProject("Untitled", shape), null, files)} />}
       <Overlays />
+      <OfflineBanner />
       {notice && !editor && (
         <RecoveryPrompt
           notice={notice}

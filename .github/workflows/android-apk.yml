@@ -120,8 +120,8 @@ jobs:
           for f in $(find android/app/build/outputs/apk -name '*.apk'); do
             i=$((i + 1))
             case "$f" in
-              *release*) cp "$f" "apk/openroll-release.apk" ;;
-              *) cp "$f" "apk/openroll-debug.apk" ;;
+              *release*) cp "$f" "apk/motion-release.apk" ;;
+              *) cp "$f" "apk/motion-debug.apk" ;;
             esac
           done
           [ "$i" -gt 0 ] || { echo "::error ::no APK was produced"; exit 1; }
@@ -135,11 +135,11 @@ jobs:
           OPENROLL_KEYSTORE_PASSWORD: ${{ secrets.OPENROLL_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          # openroll-release.apk is released first: it is the shrunk, installable build. It is
+          # motion-release.apk is released first: it is the shrunk, installable build. It is
           # signed with the debug key unless OPENROLL_KEYSTORE secrets are set, which still
           # installs fine but fails Play upload validation.
-          APK=apk/openroll-release.apk
-          [ -f "$APK" ] || APK=apk/openroll-debug.apk
+          APK=apk/motion-release.apk
+          [ -f "$APK" ] || APK=apk/motion-debug.apk
           # apksigner lives in build-tools and is not put on PATH by setup-android, so find it.
           SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner | sort -V | tail -1)
@@ -179,7 +179,7 @@ jobs:
             fi
           done
           echo "web assets complete"
-          if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/openroll-release.apk ]; then
+          if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/motion-release.apk ]; then
             echo "signed with the release keystore" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "signed with the debug keystore (installs, but Play will reject it)" >> "$GITHUB_STEP_SUMMARY"
@@ -187,7 +187,7 @@ jobs:
           echo "::notice ::$(basename "$APK") is $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB with $JS js assets and $FONTS fonts"
       - uses: actions/upload-artifact@v4
         with:
-          name: openroll-apk
+          name: motion-apk
           path: apk/*.apk
           retention-days: 30
           if-no-files-found: error

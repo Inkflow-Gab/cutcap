@@ -814,7 +814,8 @@ public class MotionNativePlugin extends Plugin {
         d.put("hardwareDecoding", true);
         d.put("proxyMode", "auto");
         d.put("projectsDir", (Object) null);
-        d.put("autoUpdate", true);
+        // Updates and the news feed are GitHub fetches; an APK is replaced by installing one.
+        d.put("autoUpdate", false);
         d.put("news", false);
         d.put("communityTemplates", false);
         d.put("aiControl", false);
