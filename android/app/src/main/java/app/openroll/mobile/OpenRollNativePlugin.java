@@ -767,7 +767,7 @@ public class OpenRollNativePlugin extends Plugin {
     }
 
     @PluginMethod
-    public void cacheClear(PluginCall call) {
+    public void clearCache(PluginCall call) {
         io.execute(() -> {
             File[] files = cacheDir().listFiles();
             if (files != null) {
