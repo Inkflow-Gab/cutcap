@@ -75,7 +75,11 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
+      # The debug build is only for a person who wants an unshrunk APK to read stack traces
+      # from. Building it on every push doubled the job for an artifact nothing installed; the
+      # release build below is the one that ships and the one whose contents are checked.
       - name: Debug APK
+        if: github.event_name == 'workflow_dispatch'
         run: |
           cd android
           set +e
@@ -127,6 +131,8 @@ jobs:
       # is the failure mode this port kept hitting (the export worker was pruned for a while).
       # Check the contents here, where the numbers also land in the job summary.
       - name: Check APK contents
+        env:
+          OPENROLL_KEYSTORE_PASSWORD: ${{ secrets.OPENROLL_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
           # openroll-release.apk is released first: it is the shrunk, installable build. It is
@@ -173,6 +179,11 @@ jobs:
             fi
           done
           echo "web assets complete"
+          if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/openroll-release.apk ]; then
+            echo "signed with the release keystore" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "signed with the debug keystore (installs, but Play will reject it)" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "::notice ::$(basename "$APK") is $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB with $JS js assets and $FONTS fonts"
       - uses: actions/upload-artifact@v4
         with:

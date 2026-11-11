@@ -37,6 +37,10 @@ public class MainActivity extends BridgeActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         edgeToEdge();
 
+        // Remote inspection is a development tool: it slows the WebView slightly and exposes the
+        // page to anything on the other end of the cable.
+        if (!BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(false);
+
         WebView web = getBridge().getWebView();
         // Timeline audio must start without a fresh gesture for every clip.
         web.getSettings().setMediaPlaybackRequiresUserGesture(false);

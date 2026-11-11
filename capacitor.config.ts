@@ -25,7 +25,9 @@ const config: CapacitorConfig = {
     // at their normal density and the responsive layout in mobile.css does the work.
     // Default (unset) is what we want; spelled out so nobody "fixes" it later.
     allowMixedContent: false,
-    // Text fields, the keyboard, and drag handles all need the standard zoom behaviour off.
+    // Remote debugging stays on for debug builds. It is turned off for release below by the
+    // Gradle release type, because a debugging-enabled WebView costs a little performance and
+    // lets anything with USB access inspect the page.
     webContentsDebuggingEnabled: true,
     backgroundColor: "#141415",
   },

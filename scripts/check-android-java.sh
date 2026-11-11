@@ -95,7 +95,11 @@ rm -rf "$WORK/appstub"
 mkdir -p "$WORK/appstub/app/openroll/mobile"
 cat > "$WORK/appstub/app/openroll/mobile/BuildConfig.java" <<'EOF'
 package app.openroll.mobile;
-public final class BuildConfig { public static final String VERSION_NAME = "1.0"; public static final int VERSION_CODE = 1; }
+public final class BuildConfig {
+  public static final String VERSION_NAME = "1.0";
+  public static final int VERSION_CODE = 1;
+  public static final boolean DEBUG = false;
+}
 EOF
 "$JAVA" -cp "$WORK/ecj.jar" org.eclipse.jdt.internal.compiler.batch.Main \
   -source "$JAVA_LEVEL" -target "$JAVA_LEVEL" -nowarn -proc:none -d "$WORK/appout" \
