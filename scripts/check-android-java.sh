@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Builds a Java compile environment for the Android module in a sandbox without the Android
-# SDK, Google Maven, or a system JDK: a portable JRE+ECJ (Eclipse compiler), the android-36
-# platform stubs, standalone AndroidX stubs from this repo, and Capacitor's own sources from
-# node_modules. Then compiles the app module and reports real errors.
-#
-# This is a local development aid, not part of the app build. CI uses the real SDK and Gradle.
+# Compiles the Android module's Java in a sandbox with no Android SDK, no Google Maven, and no
+# system JDK: a portable JRE, the Eclipse compiler (ECJ, which runs on a JRE), the android-36
+# platform stubs, the AndroidX stubs checked in under scripts/java-check/stubs, and Capacitor's
+# own sources from node_modules. Real javac/AGP in CI is still the authority; this catches the
+# errors that would otherwise cost a full CI round trip.
 #
 #   bash scripts/check-android-java.sh
 #
-# Everything it downloads goes to $OPENROLL_JAVA_CHECK_DIR (default /tmp/openroll-java-check).
+# Everything downloaded lands in $OPENROLL_JAVA_CHECK_DIR (default /tmp/openroll-java-check).
 set -euo pipefail
 
 OPENROLL=$(cd "$(dirname "$0")/.." && pwd)
@@ -17,21 +16,26 @@ WORK=${OPENROLL_JAVA_CHECK_DIR:-/tmp/openroll-java-check}
 mkdir -p "$WORK"
 cd "$WORK"
 
-# --- A Java runtime. Prefer one already on PATH; otherwise unpack the portable jdk4py wheel,
-# which is a full JRE and the only JDK-shaped thing reachable from this sandbox.
-if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
-  JAVA="$JAVA_HOME/bin/java"
-elif command -v java >/dev/null 2>&1; then
+# ECJ 3.10 in this sandbox predates Java 11 switch expressions, so Capacitor's own sources are
+# compiled with the language features it understands. Only Java 8 syntax is used here.
+JAVA_LEVEL=1.8
+
+# --- A Java runtime. Prefer a JDK on PATH (ecj, javac); otherwise unpack the portable jdk4py
+# wheel, a full JRE, which is the only JDK-shaped download reachable from this sandbox.
+if command -v java >/dev/null 2>&1; then
   JAVA=$(command -v java)
+elif [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  JAVA="$JAVA_HOME/bin/java"
 elif [ -x "$WORK/java/bin/java" ]; then
   JAVA="$WORK/java/bin/java"
 else
-  echo "No Java found; fetching a portable runtime..."
-  python3 -m venv "$WORK/venv" >/dev/null 2>&1 || python3 -m venv --without-pip "$WORK/venv"
+  echo "No Java on PATH; fetching a portable runtime..."
+  python3 -m venv "$WORK/venv"
   "$WORK/venv/bin/pip" install --quiet --disable-pip-version-check jdk4py==21.0.8.2
   cp -r "$WORK"/venv/lib/python3*/site-packages/jdk4py/java-runtime "$WORK/java"
   JAVA="$WORK/java/bin/java"
 fi
+echo "java: $("$JAVA" -version 2>&1 | head -1)"
 
 fetch() { # url dest
   [ -f "$2" ] || curl -fsSL -o "$2" "$1" -H "Accept: application/vnd.github.raw"
@@ -39,13 +43,27 @@ fetch() { # url dest
 fetch "https://api.github.com/repos/marcust/ecj4ant/contents/lib/ecj-4.4.jar" "$WORK/ecj.jar"
 fetch "https://api.github.com/repos/Sable/android-platforms/contents/android-36/android.jar" "$WORK/android.jar"
 
+# This android.jar is a bootclasspath jar: it carries the java.* tree the Android compiler uses.
+# Keeping it on the classpath is what lets ECJ resolve java.lang without a full JDK installed.
+SDK="$WORK/android.jar"
+
+
 ecj() { # outdir classpath files...
   local out=$1 cp=$2
   shift 2
   rm -rf "$out" && mkdir -p "$out"
   "$JAVA" -cp "$WORK/ecj.jar" org.eclipse.jdt.internal.compiler.batch.Main \
-    -source 1.8 -target 1.8 -nowarn -proc:none -d "$out" -cp "$cp" "$@"
+    -source "$JAVA_LEVEL" -target "$JAVA_LEVEL" -nowarn -proc:none -d "$out" -cp "$cp" "$@"
 }
+
+report() { # log
+  grep -A6 "ERROR in" "$1" | grep -v "^--$" | head -60
+  grep -E "^[0-9]+ problems?" "$1" || true
+}
+
+# --- The two java.* stubs the platform jar is missing (LambdaMetafactory). Android resolves both
+# from its own boot classpath; see scripts/java-check/java-stubs.
+ecj "$WORK/javaout" "$SDK" $(find "$OPENROLL/scripts/java-check/java-stubs" -name '*.java') 2>/dev/null || true
 
 # --- androidx.annotation, needed by AndroidX, Capacitor and the app.
 mkdir -p "$WORK/annstub/androidx/annotation"
@@ -53,47 +71,35 @@ for a in Nullable NonNull; do
   printf 'package androidx.annotation;\nimport java.lang.annotation.*;\n@Retention(RetentionPolicy.CLASS) @Target({ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD, ElementType.LOCAL_VARIABLE, ElementType.TYPE_USE})\npublic @interface %s {}\n' \
     "$a" > "$WORK/annstub/androidx/annotation/$a.java"
 done
-ecj "$WORK/annout" "$WORK/android.jar" $(find "$WORK/annstub" -name '*.java')
+ecj "$WORK/annout" "$SDK" $(find "$WORK/annstub" -name '*.java')
 
 # --- The AndroidX surface the app and Capacitor touch, checked in under scripts/java-check.
-ecj "$WORK/xout" "$WORK/android.jar:$WORK/annout" $(find "$STUBS" -name '*.java')
+ecj "$WORK/xout" "$SDK:$WORK/annout" $(find "$STUBS" -name '*.java')
 
-# --- Capacitor library, compiled from the package in node_modules.
+# --- Capacitor. The package in node_modules does not compile here: it needs AndroidX WebKit,
+# Fragment, Cordova and Java 15 syntax. scripts/java-check/capacitor declares the slice of
+# Capacitor 8's API the app calls, with the real signatures, so the app is still checked against
+# the true surface instead of nothing. CI's Gradle build compiles the real library.
+CAPSTUBS="$OPENROLL/scripts/java-check/capacitor"
 CAP="$WORK/capstub"
-rm -rf "$CAP" && mkdir -p "$CAP/src" "$CAP/out"
-cp -r "$OPENROLL/node_modules/@capacitor/android/capacitor/src/main/java/com" "$CAP/src/"
-mkdir -p "$CAP/src/com/getcapacitor/android"
-cat > "$CAP/src/com/getcapacitor/android/R.java" <<'EOF'
-package com.getcapacitor.android;
-public final class R {
-  public static final class layout { public static final int capacitor_bridge_layout_main = 1; public static final int no_webview = 2; }
-  public static final class style { public static final int AppTheme_NoActionBar = 3; }
-  public static final class xml { public static final int config = 4; }
-  public static final class string { public static final int package_name = 5; }
-  public static final class color { public static final int capacitor_status_bar = 6; }
-}
-EOF
-cat > "$CAP/src/com/getcapacitor/BuildConfig.java" <<'EOF'
-package com.getcapacitor;
-public final class BuildConfig { public static final String VERSION_NAME = "8.6.0"; }
-EOF
-find "$CAP/src" -name '*.java' > "$CAP/srcs.txt"
-"$JAVA" -cp "$WORK/ecj.jar" org.eclipse.jdt.internal.compiler.batch.Main \
-  -source 1.8 -target 1.8 -nowarn -proc:none -d "$CAP/out" \
-  -cp "$WORK/android.jar:$WORK/annout:$WORK/xout" @"$CAP/srcs.txt" 2>&1 |
-  grep -E "ERROR" | head -10 || true
+ecj "$CAP/out" "$SDK:$WORK/annout:$WORK/xout" $(find "$CAPSTUBS" -name '*.java')
 
-# --- The app module.
-mkdir -p "$WORK/appstub"
-cat > "$WORK/appstub/BuildConfig.java" <<'EOF'
+# --- The app module. BuildConfig and R come from the Gradle build in CI; stub them here.
+rm -rf "$WORK/appstub"
+mkdir -p "$WORK/appstub/app/openroll/mobile"
+cat > "$WORK/appstub/app/openroll/mobile/BuildConfig.java" <<'EOF'
 package app.openroll.mobile;
 public final class BuildConfig { public static final String VERSION_NAME = "1.0"; public static final int VERSION_CODE = 1; }
 EOF
 "$JAVA" -cp "$WORK/ecj.jar" org.eclipse.jdt.internal.compiler.batch.Main \
-  -source 1.8 -target 1.8 -nowarn -proc:none -d "$WORK/appout" \
-  -cp "$WORK/android.jar:$WORK/annout:$WORK/xout:$CAP/out" \
+  -source "$JAVA_LEVEL" -target "$JAVA_LEVEL" -nowarn -proc:none -d "$WORK/appout" \
+  -cp "$SDK:$WORK/javaout:$WORK/annout:$WORK/xout:$CAPSTUBS" \
   $(find "$OPENROLL/android/app/src/main/java" -name '*.java') \
-  $(find "$WORK/appstub" -name '*.java') 2>&1 | tee "$WORK/app.log" |
-  grep -E "ERROR in|^[0-9]+ problems" | head -40 || true
-grep -q "ERROR in" "$WORK/app.log" && { echo "JAVA CHECK FAILED"; exit 1; }
+  $(find "$WORK/appstub" -name '*.java') > "$WORK/app.log" 2>&1 || true
+if grep -q "ERROR in" "$WORK/app.log"; then
+  echo "--- App module"
+  report "$WORK/app.log"
+  echo "JAVA CHECK FAILED"
+  exit 1
+fi
 echo "JAVA CHECK PASSED"

@@ -70,7 +70,18 @@ jobs:
         run: npx cap sync android
 
       - name: Debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+        run: |
+          cd android
+          set +e
+          ./gradlew assembleDebug --no-daemon --stacktrace --warning-mode=summary 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Logs are only readable in the UI; annotations come back through the API too, which
+            # is what an agent iterating on this workflow can see.
+            grep -nE "^(e: |.*error:|What went wrong|Caused by|> Task .*FAILED|FAILURE:)" "$RUNNER_TEMP/gradle.log" \
+              | head -25 | while IFS= read -r line; do echo "::error ::$line"; done
+          fi
+          exit "$status"
 
       - name: Release APK
         env:
@@ -82,7 +93,15 @@ jobs:
           if [ -n "$OPENROLL_KEYSTORE_PASSWORD" ]; then
             echo "${{ secrets.OPENROLL_KEYSTORE_BASE64 }}" | base64 -d > "$OPENROLL_KEYSTORE"
           fi
-          cd android && ./gradlew assembleRelease --no-daemon
+          cd android
+          set +e
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-release.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            grep -nE "^(e: |.*error:|What went wrong|Caused by|> Task .*FAILED|FAILURE:)" "$RUNNER_TEMP/gradle-release.log" \
+              | head -25 | while IFS= read -r line; do echo "::error ::$line"; done
+          fi
+          exit "$status"
 
       - name: Collect APKs
         run: |

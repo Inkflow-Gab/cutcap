@@ -76,7 +76,7 @@ public class MainActivity extends BridgeActivity {
         if (web == null) return;
         pendingShare = null;
         try {
-            getContext().getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } catch (Exception ignored) {
             // A share grant is for this session; the copy is what matters.
         }

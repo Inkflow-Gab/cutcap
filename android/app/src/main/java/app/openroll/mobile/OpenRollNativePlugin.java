@@ -187,7 +187,7 @@ public class OpenRollNativePlugin extends Plugin {
         return last == null ? null : last.substring(last.lastIndexOf('/') + 1);
     }
 
-    private JSObject describe(File f, String displayName) throws JSONException {
+    private JSObject describe(File f, String displayName) {
         JSObject o = new JSObject();
         o.put("path", f.getAbsolutePath());
         o.put("name", displayName != null ? displayName : f.getName());
@@ -229,11 +229,7 @@ public class OpenRollNativePlugin extends Plugin {
             call.resolve(new JSObject().put("file", null));
             return;
         }
-        try {
-            call.resolve(new JSObject().put("file", describe(f, f.getName())));
-        } catch (JSONException e) {
-            call.reject(e.getMessage());
-        }
+        call.resolve(new JSObject().put("file", describe(f, f.getName())));
     }
 
     @PluginMethod
@@ -390,16 +386,13 @@ public class OpenRollNativePlugin extends Plugin {
             if (files != null) {
                 Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
                 for (File f : files) {
-                    try {
-                        JSObject o = new JSObject();
-                        o.put("path", f.getAbsolutePath());
-                        o.put("name", f.getName().substring(0, f.getName().length() - ".openroll".length()));
-                        o.put("modified", f.lastModified());
-                        File thumb = thumbFor(f);
-                        if (thumb.exists()) o.put("thumb", thumb.getAbsolutePath());
-                        out.put(o);
-                    } catch (JSONException ignored) {
-                    }
+                    JSObject o = new JSObject();
+                    o.put("path", f.getAbsolutePath());
+                    o.put("name", f.getName().substring(0, f.getName().length() - ".openroll".length()));
+                    o.put("modified", f.lastModified());
+                    File thumb = thumbFor(f);
+                    if (thumb.exists()) o.put("thumb", thumb.getAbsolutePath());
+                    out.put(o);
                 }
             }
             call.resolve(new JSObject().put("projects", out));
@@ -741,12 +734,8 @@ public class OpenRollNativePlugin extends Plugin {
     public void cacheFile(PluginCall call) {
         String key = call.getString("key");
         io.execute(() -> {
-            try {
-                File f = cacheFile(key);
-                call.resolve(new JSObject().put("file", f != null && f.exists() ? describe(f, f.getName()) : null));
-            } catch (JSONException e) {
-                call.reject(e.getMessage());
-            }
+            File f = cacheFile(key);
+            call.resolve(new JSObject().put("file", f != null && f.exists() ? describe(f, f.getName()) : null));
         });
     }
 

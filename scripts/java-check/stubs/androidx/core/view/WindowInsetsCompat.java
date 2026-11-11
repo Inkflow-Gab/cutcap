@@ -8,9 +8,5 @@ public final class WindowInsetsCompat {
     public static int displayCutout() { return 2; }
     public static int ime() { return 4; }
   }
-  public Insets getInsets(int typeMask) { return null; }
-  public static final class Insets {
-    public final int left, top, right, bottom;
-    private Insets(int l, int t, int r, int b) { left = l; top = t; right = r; bottom = b; }
-  }
+  public androidx.core.graphics.Insets getInsets(int typeMask) { return null; }
 }
