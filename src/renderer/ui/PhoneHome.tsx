@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FileInfo, RecentProject } from "../../shared/api";
 import { Icon, type IconName } from "./kit/Icon";
+import { GalleryPicker } from "./GalleryPicker";
 
 /**
  * The home screen for phones.
@@ -43,8 +44,24 @@ const SHAPES = {
 
 export function PhoneHome({ projects, onOpen, onNew, onSettings, onInbox, hasNews }: Props) {
   const [tab, setTab] = useState<PhoneTab>("edit");
+  // What a gallery pick is for: a new project in a given shape, or nothing when the tools just
+  // want clips of any shape.
+  const [picking, setPicking] = useState<{ kind: "image" | "video"; shape?: { width: number; height: number } } | null>(null);
 
-  const startWithClips = async (shape?: { width: number; height: number }) => {
+  /**
+   * Starts a project from clips.
+   *
+   * When the device has a gallery, that is what opens: it shows the phone's own photos with
+   * thumbnails and albums, which is what a person expects from a phone editor. The system picker
+   * is still there for anything the gallery cannot see — a file in Downloads, a drive, a USB
+   * stick — behind the "Files" button on the same screen.
+   */
+  const startWithClips = (shape?: { width: number; height: number }, kind: "image" | "video" = "video") => {
+    if (window.openroll.gallery) setPicking({ kind, shape });
+    else void fromSystemPicker(shape);
+  };
+
+  const fromSystemPicker = async (shape?: { width: number; height: number }) => {
     // Picking happens before the editor exists, so a cancelled picker is simply nothing.
     const files = await window.openroll.pickMedia();
     if (files.length) onNew(files, shape);
@@ -56,40 +73,40 @@ export function PhoneHome({ projects, onOpen, onNew, onSettings, onInbox, hasNew
         id: "trim",
         label: "Trim a video",
         icon: "crop",
-        run: () => void startWithClips(),
+        run: () => startWithClips(),
       },
       {
         id: "vertical",
         label: "Vertical video",
         icon: "shapes",
         note: "9:16",
-        run: () => void startWithClips(SHAPES.vertical),
+        run: () => startWithClips(SHAPES.vertical),
       },
       {
         id: "square",
         label: "Square",
         icon: "shapes",
         note: "1:1",
-        run: () => void startWithClips(SHAPES.square),
+        run: () => startWithClips(SHAPES.square),
       },
       {
         id: "wide",
         label: "Widescreen",
         icon: "shapes",
         note: "16:9",
-        run: () => void startWithClips(SHAPES.widescreen),
+        run: () => startWithClips(SHAPES.widescreen),
       },
       {
         id: "audio",
         label: "Record voice",
         icon: "mic",
-        run: () => void startWithClips(),
+        run: () => startWithClips(),
       },
       {
         id: "captions",
         label: "Captions",
         icon: "captions",
-        run: () => void startWithClips(),
+        run: () => startWithClips(),
       },
       {
         id: "empty",
@@ -101,7 +118,7 @@ export function PhoneHome({ projects, onOpen, onNew, onSettings, onInbox, hasNew
         id: "templates",
         label: "Templates",
         icon: "templates",
-        run: () => void startWithClips(),
+        run: () => startWithClips(),
       },
     ],
     // startWithClips closes over onNew only.
@@ -129,7 +146,7 @@ export function PhoneHome({ projects, onOpen, onNew, onSettings, onInbox, hasNew
       <main className="phome-main">
         {tab === "edit" && (
           <>
-            <button className="phome-new" onClick={() => void startWithClips()}>
+            <button className="phome-new" onClick={() => startWithClips()}>
               <span className="phome-new-plus">
                 <Icon name="plus" size={24} />
               </span>
@@ -200,6 +217,22 @@ export function PhoneHome({ projects, onOpen, onNew, onSettings, onInbox, hasNew
           </section>
         )}
       </main>
+
+      {picking && (
+        <GalleryPicker
+          kind={picking.kind}
+          onClose={() => setPicking(null)}
+          onBrowseFiles={() => {
+            const shape = picking.shape;
+            setPicking(null);
+            void fromSystemPicker(shape);
+          }}
+          onPicked={files => {
+            setPicking(null);
+            if (files.length) onNew(files, picking.shape);
+          }}
+        />
+      )}
 
       <nav className="phome-tabs" aria-label="Sections">
         {(

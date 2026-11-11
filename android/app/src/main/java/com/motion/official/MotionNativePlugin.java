@@ -2,9 +2,14 @@ package com.motion.official;
 
 import android.app.Activity;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Intent;
 import android.database.Cursor;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import androidx.activity.result.ActivityResult;
 import androidx.core.content.FileProvider;
@@ -13,8 +18,11 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -29,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -50,7 +59,17 @@ import org.json.JSONObject;
  *
  * Nothing here listens on a socket and no file leaves the device.
  */
-@CapacitorPlugin(name = "MotionNative")
+@CapacitorPlugin(
+    name = "MotionNative",
+    permissions = {
+        // Android 13 and later grant this instead of a storage permission. Older versions read
+        // the gallery through READ_EXTERNAL_STORAGE, which the manifest caps at API 32.
+        @Permission(alias = "images", strings = { "android.permission.READ_MEDIA_IMAGES" }),
+        @Permission(alias = "video", strings = { "android.permission.READ_MEDIA_VIDEO" }),
+        @Permission(alias = "audio", strings = { "android.permission.READ_MEDIA_AUDIO" }),
+        @Permission(alias = "storage", strings = { "android.permission.READ_EXTERNAL_STORAGE" })
+    }
+)
 public class MotionNativePlugin extends Plugin {
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
@@ -116,10 +135,272 @@ public class MotionNativePlugin extends Plugin {
      * leading slash dropped and every segment encoded, which MediaRangeClient decodes back.
      */
     String mediaUrlFor(String path) {
+        // A gallery thumbnail is generated on first request; the grid asks for dozens at once and
+        // a second pass over the same album finds them all already written.
+        if (path.startsWith("thumb:")) {
+            String[] parts = path.split(":", 3);
+            if (parts.length == 3) {
+                try {
+                    File f = thumbnailFile(parts[1], Long.parseLong(parts[2]));
+                    if (f != null) path = f.getAbsolutePath();
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
         String p = path.startsWith("file://") ? Uri.parse(path).getPath() : path;
         if (p == null) p = "";
         String rel = p.startsWith("/") ? p.substring(1) : p;
         return "https://localhost/motion-media/" + Uri.encode(rel, "/");
+    }
+
+    // ---------------------------------------------------------------- gallery
+
+    /**
+     * The device's own gallery, read through MediaStore.
+     *
+     * Android's document picker shows a file browser, not photos: no thumbnails, no albums, no
+     * sense of what is recent. A phone editor has to show the gallery the phone already has, so
+     * this reads MediaStore instead — albums for the tab row, every image and video for the grid.
+     *
+     * The rows are returned as `id`, not as content URIs, so the renderer can ask for a thumbnail
+     * of one and import only the ones that were actually chosen.
+     */
+    @PluginMethod
+    public void galleryPickAlbum(PluginCall call) {
+        String kind = call.getString("kind", "image");
+        if (!galleryAllowed(call, "galleryAlbums")) return;
+        io.execute(() -> {
+            try {
+                call.resolve(galleryAlbums(kind));
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void galleryList(PluginCall call) {
+        String kind = call.getString("kind", "image");
+        if (!galleryAllowed(call, "galleryItems")) return;
+        io.execute(() -> {
+            try {
+                call.resolve(galleryItems(kind));
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
+    }
+
+    /** Brings chosen gallery rows into app storage and describes them like any other import. */
+    @PluginMethod
+    public void galleryImport(PluginCall call) {
+        JSArray ids = call.getArray("ids");
+        String kind = call.getString("kind", "image");
+        if (ids == null || ids.length() == 0) {
+            call.resolve(new JSObject().put("files", new JSArray()));
+            return;
+        }
+        io.execute(() -> {
+            JSArray files = new JSArray();
+            int failed = 0;
+            for (int i = 0; i < ids.length(); i++) {
+                long id = ids.optLong(i, -1);
+                if (id < 0) {
+                    failed++;
+                    continue;
+                }
+                try {
+                    files.put(importUri(uriFor(kind, id)));
+                } catch (Exception e) {
+                    failed++;
+                }
+            }
+            JSObject out = new JSObject().put("files", files);
+            if (failed > 0) out.put("failed", failed);
+            call.resolve(out);
+        });
+    }
+
+    /**
+     * Asks for read access to photos and videos the first time, and answers whether it is there.
+     *
+     * One permission for both, not one per tab: the grid can switch between Photos and Videos at
+     * any moment, and a second system dialog for a tab tap would be a surprise. On 33+ the two are
+     * separate grants; the older READ_EXTERNAL_STORAGE covers both. Declined once means answered —
+     * the sheet says the gallery is not readable rather than prompting forever.
+     */
+    /**
+     * Guards a gallery read: true when it may go ahead, false when something else will settle it.
+     *
+     * Three outcomes, and the difference matters. Granted: read. Not yet answered: the system
+     * dialog goes up and the callback re-runs the call, so nothing is settled here. Answered no:
+     * reject, because a promise that never settles leaves the sheet spinning over an empty grid.
+     */
+    private boolean galleryAllowed(PluginCall call, String callback) {
+        if (hasGalleryAccess()) return true;
+        String[] aliases = Build.VERSION.SDK_INT >= 33
+            ? new String[] { "images", "video" }
+            : new String[] { "storage" };
+        boolean asked = false;
+        for (String alias : aliases) {
+            PermissionState state = getPermissionState(alias);
+            if (state == PermissionState.PROMPT || state == PermissionState.PROMPT_WITH_RATIONALE) asked = true;
+        }
+        if (!asked) {
+            call.reject("Allow access to photos and videos in Settings to browse your gallery.");
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= 33) requestPermissionForAliases(aliases, call, callback);
+        else requestPermissionForAlias("storage", call, callback);
+        return false;
+    }
+
+    private boolean hasGalleryAccess() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            return getPermissionState("images") == PermissionState.GRANTED
+                || getPermissionState("video") == PermissionState.GRANTED;
+        }
+        return getPermissionState("storage") == PermissionState.GRANTED;
+    }
+
+    @PermissionCallback
+    private void galleryAlbums(PluginCall call) {
+        galleryPickAlbum(call);
+    }
+
+    @PermissionCallback
+    private void galleryItems(PluginCall call) {
+        galleryList(call);
+    }
+
+    private static Uri collectionFor(String kind) {
+        if (kind.equals("video")) return MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+        if (kind.equals("audio")) return MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        return MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+    }
+
+    private static Uri uriFor(String kind, long id) {
+        return ContentUris.withAppendedId(collectionFor(kind), id);
+    }
+
+    private JSObject galleryAlbums(String kind) throws JSONException {
+        Uri collection = collectionFor(kind);
+        String[] cols = {
+            MediaStore.MediaColumns.BUCKET_ID,
+            MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
+            MediaStore.MediaColumns._ID
+        };
+        String order = MediaStore.MediaColumns.DATE_ADDED + " DESC";
+        // Newest first, so the first row seen for a bucket is that album's cover. A linked map
+        // keeps the albums in that same order — the one the person browsed — while counts are
+        // still being added up, so nothing has to be rebuilt afterwards.
+        Map<String, JSObject> found = new LinkedHashMap<>();
+        Map<String, Integer> counts = new HashMap<>();
+        Map<String, Long> covers = new HashMap<>();
+        try (Cursor c = getContext().getContentResolver().query(collection, cols, null, null, order)) {
+            if (c == null) return new JSObject().put("albums", new JSArray());
+            while (c.moveToNext()) {
+                String bucket = c.getString(0);
+                if (bucket == null) continue;
+                Integer seen = counts.get(bucket);
+                if (seen == null) {
+                    JSObject album = new JSObject();
+                    album.put("id", bucket);
+                    album.put("name", c.getString(1) != null ? c.getString(1) : "Other");
+                    found.put(bucket, album);
+                    covers.put(bucket, c.getLong(2));
+                }
+                counts.put(bucket, seen == null ? 1 : seen + 1);
+            }
+        }
+        JSArray albums = new JSArray();
+        for (Map.Entry<String, JSObject> e : found.entrySet()) {
+            String bucket = e.getKey();
+            JSObject album = e.getValue();
+            Integer n = counts.get(bucket);
+            album.put("count", n == null ? 0 : n.intValue());
+            Long cover = covers.get(bucket);
+            album.put("cover", cover == null ? "" : mediaUrlFor("thumb:" + kind + ":" + cover.longValue()));
+            albums.put(album);
+        }
+        return new JSObject().put("albums", albums);
+    }
+
+    private JSObject galleryItems(String kind) throws JSONException {
+        Uri collection = collectionFor(kind);
+        String idCol = MediaStore.MediaColumns._ID;
+        String[] cols = {
+            idCol,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.BUCKET_ID,
+            MediaStore.MediaColumns.SIZE
+        };
+        JSArray items = new JSArray();
+        String order = MediaStore.MediaColumns.DATE_ADDED + " DESC";
+        try (Cursor c = getContext().getContentResolver().query(collection, cols, null, null, order)) {
+            if (c == null) return new JSObject().put("items", items);
+            int limit = Math.min(c.getCount(), 4000);
+            for (int i = 0; i < limit && c.moveToNext(); i++) {
+                JSObject o = new JSObject();
+                long id = c.getLong(0);
+                o.put("id", id);
+                o.put("name", c.getString(1) != null ? c.getString(1) : "Untitled");
+                o.put("added", c.getLong(2) * 1000L);
+                o.put("album", c.getString(3) != null ? c.getString(3) : "");
+                o.put("size", c.getLong(4));
+                o.put("thumb", mediaUrlFor("thumb:" + kind + ":" + id));
+                items.put(o);
+            }
+        }
+        return new JSObject().put("items", items);
+    }
+
+    /**
+     * A thumbnail for one gallery row.
+     *
+     * The WebView cannot hold content:// URIs, and loading a 12 MP photo to show a 120 px square
+     * is what makes a phone gallery stutter. This asks MediaStore for a small bitmap and writes it
+     * to the cache once, so scrolling the grid reads a file the size of a thumbnail.
+     */
+    private File thumbnailFile(String kind, long id) {
+        // Under cache/, so Clear cache takes them with it: they are rebuildable from the gallery.
+        File dir = dir("cache/thumbs");
+        File f = new File(dir, kind + "-" + id + ".jpg");
+        if (f.exists() && f.length() > 0) return f;
+        Uri uri = uriFor(kind, id);
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.graphics.Bitmap bmp = getContext().getContentResolver().loadThumbnail(uri, new android.util.Size(320, 320), null);
+                try (FileOutputStream out = new FileOutputStream(f)) {
+                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, out);
+                }
+                bmp.recycle();
+                return f;
+            }
+            // Older versions: full decode, then scale down before writing.
+            try (InputStream in = getContext().getContentResolver().openInputStream(uri)) {
+                if (in == null) return null;
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(in);
+                if (bmp == null) return null;
+                int side = Math.min(bmp.getWidth(), bmp.getHeight());
+                int target = Math.min(320, side);
+                android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(
+                    bmp,
+                    Math.max(1, (int) ((long) bmp.getWidth() * target / side)),
+                    Math.max(1, (int) ((long) bmp.getHeight() * target / side)),
+                    true
+                );
+                try (FileOutputStream out = new FileOutputStream(f)) {
+                    small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, out);
+                }
+                if (small != bmp) small.recycle();
+                bmp.recycle();
+                return f;
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ---------------------------------------------------------------- picking

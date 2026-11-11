@@ -1,6 +1,7 @@
 package com.getcapacitor;
 
 import android.content.Context;
+import com.getcapacitor.annotation.PermissionCallback;
 import android.content.Intent;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -47,4 +48,12 @@ public class Plugin {
     public void pluginRequestPermission(String permission, int requestCode) {}
 
     public void pluginRequestPermissions(String[] permissions, int requestCode) {}
+
+    public PermissionState getPermissionState(String alias) {
+        return PermissionState.GRANTED;
+    }
+
+    protected void requestPermissionForAlias(String alias, PluginCall call, String callbackName) {}
+
+    protected void requestPermissionForAliases(String[] aliases, PluginCall call, String callbackName) {}
 }

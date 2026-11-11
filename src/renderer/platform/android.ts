@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
-import type { OpenRollApi } from "../../shared/api";
+import type { GalleryAlbum, GalleryItem, OpenRollApi } from "../../shared/api";
 import type { Settings } from "../../shared/settings";
 import type { UpdateState } from "../../shared/api";
 
@@ -10,6 +10,9 @@ import type { UpdateState } from "../../shared/api";
  */
 interface NativeBridge {
   pickMedia(options?: Record<string, unknown>): Promise<NativeFiles>;
+  galleryPickAlbum(options: { kind: string }): Promise<{ albums: GalleryAlbum[] }>;
+  galleryList(options: { kind: string }): Promise<{ items: GalleryItem[] }>;
+  galleryImport(options: { ids: number[]; kind: string }): Promise<NativeFiles & { failed?: number }>;
   importShared(options: { uri: string }): Promise<NativeFiles>;
   pathsForDropped(options?: Record<string, unknown>): Promise<NativeFiles>;
   stat(options: { path: string }): Promise<{ file: NativeFile | null }>;
@@ -107,6 +110,16 @@ export function installAndroidApi(): void {
     async pickMedia() {
       const { files: picked } = await call<NativeFiles>("pickMedia");
       return (picked ?? []).map(remember);
+    },
+
+    gallery: {
+      albums: async kind => (await call<{ albums: GalleryAlbum[] }>("galleryPickAlbum", { kind })).albums ?? [],
+      items: async kind => (await call<{ items: GalleryItem[] }>("galleryList", { kind })).items ?? [],
+      import: async (ids, kind) => {
+        const out = await call<NativeFiles & { failed?: number }>("galleryImport", { ids, kind });
+        // Chosen order is kept: the grid numbers the selection, so the first clip is first.
+        return { files: (out.files ?? []).map(remember), failed: out.failed ?? 0 };
+      },
     },
 
     async pathsForDropped() {

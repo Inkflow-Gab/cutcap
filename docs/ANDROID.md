@@ -56,6 +56,32 @@ offered.
 There are no native libraries in the APK. Capacitor and the Filesystem plugin are pure Java and the
 DSP runs as WebAssembly in the WebView, so a single APK installs on every architecture.
 
+## The gallery
+
+Adding media opens the device's own gallery, not a file dialog. A phone editor is expected to show
+the phone's photos with thumbnails and albums; Android's document picker shows neither, which is the
+main reason adding a clip felt worse here than it does in the app it imitates.
+
+It is read straight from `MediaStore`, so it works with no network and shows what the phone actually
+has:
+
+- **Albums** come from `BUCKET_ID` / `BUCKET_DISPLAY_NAME`, with a count and a cover per album.
+- **Items** are listed newest first, capped at 4000 rows, 3 per row on a phone and 5 on a tablet.
+- **Thumbnails** are asked of the system (`loadThumbnail` on 29+, a scaled decode below that) and
+  cached as 320 px JPEGs in `cache/thumbs`. The grid never decodes a full-size photo.
+- **Sorting** cycles newest / oldest / A–Z, and an album narrows the grid.
+- **Selection is ordered.** The number on a tile is the order it was tapped, and that is the order
+  the clips land on the timeline. Tapping a chosen tile removes it and the numbers close up.
+
+Only the chosen rows are copied in, through the same import path as any other file, so a gallery of
+two thousand photos costs nothing until something is picked. The renderer addresses a row by its
+MediaStore id, never by a `content://` URI, because the WebView cannot load one.
+
+Reading the gallery needs `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` on Android 13+, and
+`READ_EXTERNAL_STORAGE` below that. Access is requested the first time the gallery opens; refusing it
+leaves the sheet explaining why and offering "Files", which is the system picker, so a clip from
+Downloads or a USB stick is still reachable.
+
 ## Storage
 
 ```
@@ -63,6 +89,7 @@ filesDir/openroll/
   media/       imported clips, recordings
   projects/    *.motion, plus a .thumb next to each
   cache/       generated sound effects and derived files (Clear cache keeps sfx-*.wav)
+  cache/thumbs/  gallery thumbnails, 320 px JPEGs
   journal/     undo history, per project
   versions/    saved project versions, per project
   templates/   local templates
@@ -70,9 +97,9 @@ filesDir/openroll/
   exports/     finished renders, shared out through FileProvider
 ```
 
-Settings and history are app-private, so they survive an app update but not an uninstall. Nothing
-outside the app's own directory is read without the system picker, which is why the app needs no
-storage permission.
+Settings and history are app-private, so they survive an app update but not an uninstall. The only
+thing read outside the app's own directory is the gallery, through `MediaStore` and only after the
+read permission is granted; files are otherwise reached through the system picker.
 
 ## Layout
 

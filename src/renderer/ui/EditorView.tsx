@@ -20,6 +20,8 @@ import { ShortcutSheet } from "./ShortcutSheet";
 import { CommandBar } from "./CommandBar";
 import { HistoryPanel } from "./HistoryPanel";
 import { PhoneTools } from "./PhoneTools";
+import { GalleryPicker } from "./GalleryPicker";
+import { importFiles } from "../state/importer";
 import { VersionsDialog } from "./VersionsDialog";
 import { agentContext } from "../agent/host";
 import { useLayout } from "../lib/layout";
@@ -32,6 +34,8 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
   const phone = useLayout().phone;
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  // The gallery sheet, opened by Add media on a phone.
+  const [galleryOpen, setGalleryOpen] = useState<"image" | "video" | null>(null);
   const proxyMode = useSettings().proxyMode;
   useEffect(() => {
     agentContext.cache = cache;
@@ -67,7 +71,21 @@ export function EditorView({ editor, onClose }: { editor: Editor; onClose(): voi
         </button>
       )}
       <Timeline editor={editor} cache={cache} />
-      {phone && <PhoneTools editor={editor} />}
+      {phone && <PhoneTools editor={editor} onAddMedia={kind => setGalleryOpen(kind)} />}
+      {galleryOpen && (
+        <GalleryPicker
+          kind={galleryOpen}
+          onClose={() => setGalleryOpen(null)}
+          onBrowseFiles={() => {
+            setGalleryOpen(null);
+            void window.openroll.pickMedia().then(f => (f.length ? importFiles(editor, f) : undefined));
+          }}
+          onPicked={files => {
+            setGalleryOpen(null);
+            void importFiles(editor, files);
+          }}
+        />
+      )}
       <Toasts editor={editor} />
       <ShortcutSheet />
       <CommandBar editor={editor} hooks={{ onExport: () => setExporting(true) }} />

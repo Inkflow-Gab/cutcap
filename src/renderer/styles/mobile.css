@@ -509,7 +509,7 @@
     bottom: calc(58px + var(--safe-bottom));
     z-index: 24;
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     background: color-mix(in srgb, var(--pane-1) 94%, transparent);
     backdrop-filter: blur(16px);
     border-top: 1px solid var(--line);
@@ -629,3 +629,243 @@
   background: transparent; color: var(--ink-2);
   cursor: pointer;
 }
+
+/* ---------- gallery picker
+ *
+ * The grid is the point: a phone editor is expected to show the phone's own pictures, with no
+ * file browser in between. Selection numbers are visible so "first" is a fact about the order the
+ * person tapped, not about the order a list happened to be in.
+ */
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  background: var(--pane-1);
+  color: var(--ink);
+}
+
+.gallery-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(var(--safe-top) + 6px) 10px 6px;
+  flex: none;
+}
+.gallery-close, .gallery-sort {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink-2);
+  cursor: pointer;
+}
+.gallery-close:active, .gallery-sort:active { background: var(--pane-2); }
+.gallery-tabs {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.gallery-tabs button {
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.gallery-tabs button.on { background: var(--pane-2); color: var(--ink); }
+
+/* Albums: a scrolling row, never wrapping, so the grid below keeps its height. */
+.gallery-albums {
+  display: flex;
+  gap: 10px;
+  padding: 4px 12px 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+.gallery-albums::-webkit-scrollbar { display: none; }
+.gallery-album {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 66px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.gallery-album-cover {
+  display: grid;
+  place-items: center;
+  width: 62px; height: 62px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--pane-2);
+  border: 2px solid transparent;
+}
+.gallery-album-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-album.on .gallery-album-cover { border-color: var(--accent); }
+.gallery-album.on { color: var(--ink); }
+.gallery-album-name {
+  max-width: 66px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gallery-album small { font-size: 10px; color: var(--ink-3, var(--ink-2)); }
+
+.gallery-status {
+  flex: none;
+  margin: 0 12px 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.gallery-error { margin: 0 12px 6px; font-size: 12.5px; color: var(--danger, #f05a5a); }
+.gallery-loading { margin: 18px 12px; font-size: 13px; color: var(--ink-2); }
+
+/* Three across: big enough to recognise a photo on a phone, dense enough to browse. */
+.gallery-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 0 2px 96px;
+}
+.gallery-tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: #000;
+  cursor: pointer;
+  overflow: hidden;
+}
+.gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-tile.on { outline: 3px solid var(--accent); outline-offset: -3px; }
+.gallery-tile.on img { opacity: 0.72; }
+/* The tap order, so the first clip is visibly first. */
+.gallery-order {
+  position: absolute;
+  top: 5px; right: 5px;
+  display: grid;
+  place-items: center;
+  min-width: 21px; height: 21px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.gallery-play {
+  position: absolute;
+  left: 5px; bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.gallery-foot {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px calc(10px + var(--safe-bottom));
+  background: color-mix(in srgb, var(--pane-1) 94%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--line);
+}
+.gallery-count { flex: 1; font-size: 12.5px; color: var(--ink-2); }
+.gallery-files {
+  flex: none;
+  padding: 11px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.gallery-add {
+  flex: none;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gallery-add:disabled { opacity: 0.4; }
+.gallery-add:not(:disabled):active { transform: scale(0.97); }
+
+@media (min-width: 560px) {
+  .gallery-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* The chosen strip: small thumbnails in the order they will land on the timeline. */
+.gallery-picked {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gallery-picked::-webkit-scrollbar { display: none; }
+.gallery-chip {
+  position: relative;
+  flex: none;
+  width: 44px; height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--pane-2);
+  cursor: pointer;
+}
+.gallery-chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-chip-n {
+  position: absolute;
+  left: 2px; top: 2px;
+  display: grid;
+  place-items: center;
+  min-width: 16px; height: 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-blocked {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px 32px 80px;
+  text-align: center;
+}
+.gallery-blocked p { margin: 0; max-width: 34ch; font-size: 13px; line-height: 1.5; color: var(--ink-2); }

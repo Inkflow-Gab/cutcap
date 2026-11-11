@@ -15,7 +15,7 @@ import { Icon } from "./kit/Icon";
  * The actions are the editor's own, not a parallel implementation: splitting here is the same
  * call the "s" key makes.
  */
-export function PhoneTools({ editor }: { editor: Editor }) {
+export function PhoneTools({ editor, onAddMedia }: { editor: Editor; onAddMedia(kind: "image" | "video"): void }) {
   const selection = useEditor(editor, e => e.selection);
   const hasClip = useEditor(editor, e => e.project.tracks.some(t => t.items.some(i => i.type === "media")));
   const [speedOpen, setSpeedOpen] = useState(false);
@@ -25,6 +25,11 @@ export function PhoneTools({ editor }: { editor: Editor }) {
 
   return (
     <div className="phone-tools" role="toolbar" aria-label="Edit">
+      <button className="phone-tool" onClick={() => onAddMedia("video")} aria-label="Add media">
+        <Icon name="plus" size={19} />
+        <span>Add</span>
+      </button>
+
       <button
         className="phone-tool"
         // splitAtPlayhead already says so when the playhead is not over a clip.

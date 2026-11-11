@@ -11,5 +11,5 @@ import java.lang.annotation.Target;
 public @interface CapacitorPlugin {
     String name() default "";
 
-    String[] permissions() default {};
+    Permission[] permissions() default {};
 }

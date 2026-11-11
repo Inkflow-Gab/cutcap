@@ -18,6 +18,48 @@ export interface FileInfo {
   mtime: number;
 }
 
+/** One folder in the device gallery, as the device reports it. */
+export interface GalleryAlbum {
+  /** The device's bucket id. Only meaningful to the gallery calls. */
+  id: string;
+  name: string;
+  count: number;
+  /** Ready to put in an `img src`; resolves to a cached thumbnail, never the full photo. */
+  cover: string;
+}
+
+/**
+ * One photo or video in the device gallery.
+ *
+ * The id is the device's own row id, so `import` can be asked for exactly the rows that were
+ * chosen and nothing else. `thumb` is a URL, not a path: the thumbnail is generated on request.
+ */
+export interface GalleryItem {
+  id: number;
+  name: string;
+  /** Milliseconds, like every other timestamp in the app. */
+  added: number;
+  /** The bucket id of the album this belongs to. */
+  album: string;
+  size: number;
+  thumb: string;
+}
+
+/**
+ * One photo or video already on the device.
+ *
+ * `thumb` is not a file path: the Android plugin turns `thumb:<kind>:<id>` into a cached JPEG on
+ * first request, so a grid of a thousand rows never decodes a full 12 MP photo.
+ */
+export interface GalleryItem {
+  id: number;
+  name: string;
+  added: number;
+  album: string;
+  size: number;
+  thumb: string;
+}
+
 export interface SaveResult {
   ok: boolean;
   path?: string;
@@ -86,12 +128,29 @@ export interface CacheInfo {
   bytes: number;
 }
 
+export interface GalleryApi {
+  /** Albums of one kind, newest first, each with how many items it holds. */
+  albums(kind: "image" | "video"): Promise<GalleryAlbum[]>;
+  /** Every item of one kind, newest first. */
+  items(kind: "image" | "video"): Promise<GalleryItem[]>;
+  /** Copies the chosen rows into app storage, in the order they were chosen. */
+  import(ids: number[], kind: "image" | "video"): Promise<{ files: FileInfo[]; failed: number }>;
+}
+
 export interface OpenRollApi {
   platform: NodeJS.Platform;
   versions: { app: string; electron: string; chrome: string };
 
   /** Native open dialog for media. Paths come back already allowed for reading. */
   pickMedia(): Promise<FileInfo[]>;
+
+  /**
+   * The device's own gallery, for picking clips without a file browser.
+   *
+   * Absent on desktop, where the open dialog already shows thumbnails and the file system is the
+   * gallery. Present on Android, where MediaStore knows about albums and recency.
+   */
+  gallery?: GalleryApi;
   /** Paths for files dropped onto the window. */
   pathsForDropped(files: File[]): Promise<FileInfo[]>;
   /** URL the renderer can fetch (with Range) to read an allowed file. */
