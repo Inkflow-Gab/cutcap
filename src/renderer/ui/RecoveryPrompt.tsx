@@ -18,9 +18,9 @@ export function RecoveryPrompt({ notice, onReopen, onEarlier, onDismiss }: Props
 
   return (
     <div className="modal-back" onPointerDown={e => e.target === e.currentTarget && onDismiss()}>
-      <div className="modal" role="alertdialog" aria-label="OpenRoll did not close properly">
+      <div className="modal" role="alertdialog" aria-label="Motion did not close properly">
         <header className="modal-head">
-          <h2>OpenRoll did not close properly</h2>
+          <h2>Motion did not close properly</h2>
           <button className="iconbtn" onClick={onDismiss} aria-label="Close">
             <Icon name="close" />
           </button>

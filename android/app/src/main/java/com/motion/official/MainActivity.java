@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -29,7 +29,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        registerPlugin(OpenRollNativePlugin.class);
+        registerPlugin(MotionNativePlugin.class);
         super.onCreate(savedInstanceState);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -84,7 +84,7 @@ public class MainActivity extends BridgeActivity {
         } catch (Exception ignored) {
             // A share grant is for this session; the copy is what matters.
         }
-        String script = "window.dispatchEvent(new CustomEvent('openroll-share',{detail:" + org.json.JSONObject.quote(uri.toString()) + "}))";
+        String script = "window.dispatchEvent(new CustomEvent('motion-share',{detail:" + org.json.JSONObject.quote(uri.toString()) + "}))";
         web.post(() -> web.evaluateJavascript(script, null));
     }
 

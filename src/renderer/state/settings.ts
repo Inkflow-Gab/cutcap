@@ -1,14 +1,17 @@
 import { useSyncExternalStore } from "react";
-import { DEFAULT_SETTINGS, type Settings } from "../../shared/settings";
+import { DEFAULT_SETTINGS, sanitizeSettings, type Settings } from "../../shared/settings";
 import { derived } from "./derived-media";
 
 let current: Settings = DEFAULT_SETTINGS;
 const listeners = new Set<() => void>();
 
 function apply(next: Settings): void {
-  current = next;
-  document.documentElement.dataset.reduceMotion = String(next.reduceMotion);
-  derived.setProxyMode(next.proxyMode);
+  // Never trust the platform to have sent a complete object. Android's settings file starts
+  // empty, so a raw `{}` used to reach the Viewer, which then indexed QUALITY_SCALE with
+  // undefined and asked for an OffscreenCanvas of NaN pixels.
+  current = sanitizeSettings(next);
+  document.documentElement.dataset.reduceMotion = String(current.reduceMotion);
+  derived.setProxyMode(current.proxyMode);
   for (const fn of listeners) fn();
 }
 

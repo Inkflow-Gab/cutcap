@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The editor's own graphite, so the window behind the WebView never flashes another colour. -->
-    <color name="openroll_bg">#141415</color>
-    <color name="openroll_accent">#4B8BF5</color>
-    <color name="openroll_sunk">#111112</color>
+    <color name="motion_bg">#141415</color>
+    <color name="motion_accent">#4B8BF5</color>
+    <color name="motion_sunk">#111112</color>
 </resources>

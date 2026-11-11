@@ -70,7 +70,7 @@ class Inbox {
         kind: "release",
         date: today,
         level: "quiet",
-        title: u.status === "ready" ? `OpenRoll ${u.version} is ready` : `OpenRoll ${u.version} is available`,
+        title: u.status === "ready" ? `Motion ${u.version} is ready` : `Motion ${u.version} is available`,
         body: u.notes || (u.status === "ready" ? "It installs when you restart." : ""),
         action: u.status === "ready" ? "restart" : "install",
       });

@@ -67,7 +67,10 @@ export function Viewer({ editor }: { editor: Editor }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const screen = Math.round(box.w * dpr);
     const w = prefs.previewQuality === "auto" ? Math.min(settings.width, screen) : Math.max(64, Math.round(settings.width * QUALITY_SCALE[prefs.previewQuality]));
-    player.setSize(w, Math.round((w * settings.height) / settings.width));
+    // A zero or unknown project shape would make this NaN and the canvas throw; leave the size
+    // the worker already has rather than hand it a bad one.
+    const h = Math.round((w * settings.height) / settings.width);
+    if (Number.isFinite(w) && Number.isFinite(h) && w >= 2 && h >= 2) player.setSize(w, h);
   }, [player, box, settings.width, settings.height, prefs.previewQuality]);
 
   useEffect(() => {

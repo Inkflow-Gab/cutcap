@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -20,7 +20,7 @@ import android.os.IBinder;
  */
 public class ExportService extends Service {
 
-    private static final String CHANNEL = "openroll-exports";
+    private static final String CHANNEL = "motion-exports";
     private static final int ID = 41;
 
     @Override

@@ -35,7 +35,7 @@ async function codecSupport(): Promise<string> {
 async function systemSummary(): Promise<string> {
   const info = await window.openroll.systemInfo();
   return [
-    `OpenRoll ${info.app}`,
+    `Motion ${info.app}`,
     `Electron ${info.electron}, Chrome ${info.chrome}`,
     `${info.os} (${info.arch})`,
     info.gpu.length ? `Graphics: ${info.gpu.join("; ")}` : "Graphics: not reported",

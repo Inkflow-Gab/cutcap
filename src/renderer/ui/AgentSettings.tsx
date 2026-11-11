@@ -10,7 +10,7 @@ function quote(s: string): string {
   return /[\s"]/.test(s) ? `"${s.replace(/"/g, '\\"')}"` : s;
 }
 
-/** Copyable setup for the common AI tools, built from where this copy of OpenRoll lives. */
+/** Copyable setup for the common AI tools, built from where this copy of Motion lives. */
 export function AgentConnect() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [copied, setCopied] = useState<string | null>(null);

@@ -34,7 +34,7 @@ export function Credit({ className }: { className?: string }) {
         </span>
       </a>
       {REPO_PUBLIC && (
-        <a href={REPO_URL} target="_blank" rel="noreferrer" aria-label="OpenRoll on GitHub">
+        <a href={REPO_URL} target="_blank" rel="noreferrer" aria-label="Motion on GitHub">
           <GitHubMark />
           GitHub
         </a>

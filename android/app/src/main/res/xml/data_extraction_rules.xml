@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <include domain="file" path="openroll/projects/" />
-        <include domain="file" path="openroll/journal/" />
-        <include domain="file" path="openroll/versions/" />
-        <include domain="file" path="openroll/state/" />
-        <exclude domain="file" path="openroll/cache/" />
+        <include domain="file" path="motion/projects/" />
+        <include domain="file" path="motion/journal/" />
+        <include domain="file" path="motion/versions/" />
+        <include domain="file" path="motion/state/" />
+        <exclude domain="file" path="motion/cache/" />
     </cloud-backup>
     <device-transfer>
-        <include domain="file" path="openroll/" />
+        <include domain="file" path="motion/" />
     </device-transfer>
 </data-extraction-rules>

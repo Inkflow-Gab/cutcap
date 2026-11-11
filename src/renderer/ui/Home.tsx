@@ -71,7 +71,7 @@ export function Home({ onOpen, onNew }: Props) {
       <header className="home-bar drag-region">
         <div className="mark">
           <Logo />
-          OpenRoll
+          Motion
         </div>
         <span className="spacer" />
         <Credit />

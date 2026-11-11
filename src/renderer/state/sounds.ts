@@ -6,7 +6,7 @@ import { encodeWav } from "../../engine/wav";
 import type { FileInfo } from "../../shared/api";
 import type { Editor } from "./editor";
 
-/** Probe a file OpenRoll wrote itself and put it on the timeline as a new sound. */
+/** Probe a file Motion wrote itself and put it on the timeline as a new sound. */
 export async function addMadeSound(editor: Editor, file: FileInfo, origin: NonNullable<MediaRef["origin"]>, at: Micros, label: string): Promise<string | null> {
   const known = Object.values(editor.project.media).find(m => m.path === file.path && m.size === file.size && m.mtime === file.mtime);
   const ref = known ?? { ...(await probe({ ...file, url: window.openroll.mediaUrl(file.path) })), origin };

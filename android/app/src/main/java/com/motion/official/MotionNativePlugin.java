@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 import android.app.Activity;
 import android.content.ContentResolver;
@@ -50,8 +50,8 @@ import org.json.JSONObject;
  *
  * Nothing here listens on a socket and no file leaves the device.
  */
-@CapacitorPlugin(name = "OpenRollNative")
-public class OpenRollNativePlugin extends Plugin {
+@CapacitorPlugin(name = "MotionNative")
+public class MotionNativePlugin extends Plugin {
 
     private final ExecutorService io = Executors.newFixedThreadPool(3);
     private final Object lock = new Object();
@@ -61,7 +61,7 @@ public class OpenRollNativePlugin extends Plugin {
     // ---------------------------------------------------------------- storage layout
 
     private File root() {
-        return new File(getContext().getFilesDir(), "openroll");
+        return new File(getContext().getFilesDir(), "motion");
     }
 
     private File dir(String name) {
@@ -104,7 +104,7 @@ public class OpenRollNativePlugin extends Plugin {
 
     /** Where Android shares files from; MediaRangeClient also serves these. */
     File sharedDir() {
-        File f = new File(getContext().getCacheDir(), "openroll-shared");
+        File f = new File(getContext().getCacheDir(), "motion-shared");
         if (!f.exists()) f.mkdirs();
         return f;
     }
@@ -119,7 +119,7 @@ public class OpenRollNativePlugin extends Plugin {
         String p = path.startsWith("file://") ? Uri.parse(path).getPath() : path;
         if (p == null) p = "";
         String rel = p.startsWith("/") ? p.substring(1) : p;
-        return "https://localhost/openroll-media/" + Uri.encode(rel, "/");
+        return "https://localhost/motion-media/" + Uri.encode(rel, "/");
     }
 
     // ---------------------------------------------------------------- picking
@@ -399,13 +399,13 @@ public class OpenRollNativePlugin extends Plugin {
     public void projectsList(PluginCall call) {
         io.execute(() -> {
             JSArray out = new JSArray();
-            File[] files = projectDir().listFiles((d, n) -> n.endsWith(".openroll") && !n.startsWith("."));
+            File[] files = projectDir().listFiles((d, n) -> n.endsWith(".motion") && !n.startsWith("."));
             if (files != null) {
                 Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
                 for (File f : files) {
                     JSObject o = new JSObject();
                     o.put("path", f.getAbsolutePath());
-                    o.put("name", f.getName().substring(0, f.getName().length() - ".openroll".length()));
+                    o.put("name", f.getName().substring(0, f.getName().length() - ".motion".length()));
                     o.put("modified", f.lastModified());
                     File thumb = thumbFor(f);
                     if (thumb.exists()) o.put("thumb", thumb.getAbsolutePath());
@@ -445,7 +445,7 @@ public class OpenRollNativePlugin extends Plugin {
         io.execute(() -> {
             try {
                 File target = path == null
-                    ? uniqueIn(projectDir(), safeName(name) + ".openroll")
+                    ? uniqueIn(projectDir(), safeName(name) + ".motion")
                     : new File(stripScheme(path));
                 if (target.getParentFile() != null) target.getParentFile().mkdirs();
                 writeBytes(target, json.getBytes(StandardCharsets.UTF_8));
@@ -507,7 +507,7 @@ public class OpenRollNativePlugin extends Plugin {
             journal.mkdirs();
             JSONObject meta = new JSONObject();
             meta.put("path", project.getAbsolutePath());
-            meta.put("name", project.getName().replace(".openroll", ""));
+            meta.put("name", project.getName().replace(".motion", ""));
             writeBytes(new File(journal, "meta.json"), meta.toString().getBytes(StandardCharsets.UTF_8));
 
             File indexFile = new File(journal, "index.json");
@@ -802,15 +802,53 @@ public class OpenRollNativePlugin extends Plugin {
         return new File(stateDir(), "settings.json");
     }
 
+    /**
+     * Every key the renderer's Settings type has, with the same defaults as DEFAULT_SETTINGS in
+     * src/shared/settings.ts. A settings file starts out empty on a new install, and returning
+     * that bare object made the viewer read an undefined preview quality; complete settings here
+     * mean the first frame never depends on whether a file happened to exist.
+     */
+    private static JSObject settingsDefaults() {
+        JSObject d = new JSObject();
+        d.put("previewQuality", "auto");
+        d.put("hardwareDecoding", true);
+        d.put("proxyMode", "auto");
+        d.put("projectsDir", (Object) null);
+        d.put("autoUpdate", true);
+        d.put("news", false);
+        d.put("communityTemplates", false);
+        d.put("aiControl", false);
+        d.put("reduceMotion", false);
+        d.put("offerCaptions", false);
+        return d;
+    }
+
+    private static JSObject withDefaults(JSONObject raw) throws JSONException {
+        JSObject merged = new JSObject();
+        for (Iterator<String> it = settingsDefaults().keys(); it.hasNext(); ) {
+            String k = it.next();
+            merged.put(k, settingsDefaults().opt(k));
+        }
+        if (raw != null) {
+            for (Iterator<String> it = raw.keys(); it.hasNext(); ) {
+                String k = it.next();
+                merged.put(k, raw.opt(k));
+            }
+        }
+        return merged;
+    }
+
     @PluginMethod
     public void settingsGet(PluginCall call) {
         io.execute(() -> {
-            JSObject settings = new JSObject();
             try {
-                if (settingsFile().exists()) settings = new JSObject(new String(readBytes(settingsFile(), 1024 * 1024), StandardCharsets.UTF_8));
-            } catch (Exception ignored) {
+                JSONObject stored = settingsFile().exists()
+                    ? new JSONObject(new String(readBytes(settingsFile(), 1024 * 1024), StandardCharsets.UTF_8))
+                    : new JSONObject();
+                call.resolve(new JSObject().put("settings", withDefaults(stored)));
+            } catch (Exception e) {
+                call.reject(e.getMessage());
             }
-            call.resolve(new JSObject().put("settings", settings));
         });
     }
 
@@ -827,10 +865,9 @@ public class OpenRollNativePlugin extends Plugin {
                     current.put(k, patch.opt(k));
                 }
                 writeBytes(settingsFile(), current.toString().getBytes(StandardCharsets.UTF_8));
-                JSArray listeners = new JSArray();
-                listeners.put(current.toString());
-                getBridge().triggerWindowJSEvent("openroll-settings", current.toString());
-                call.resolve(new JSObject().put("settings", current));
+                JSObject merged = withDefaults(current);
+                getBridge().triggerWindowJSEvent("motion-settings", merged.toString());
+                call.resolve(new JSObject().put("settings", merged));
             } catch (Exception e) {
                 call.reject(e.getMessage());
             }

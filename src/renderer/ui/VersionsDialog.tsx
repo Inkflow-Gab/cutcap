@@ -119,7 +119,7 @@ function Dialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
             </ul>
           )}
           {failed && <p className="modal-warn">{failed}</p>}
-          <p className="insp-note">OpenRoll also keeps a rolling set of automatic versions of the saved file. Saved versions here stay until you delete them.</p>
+          <p className="insp-note">Motion also keeps a rolling set of automatic versions of the saved file. Saved versions here stay until you delete them.</p>
         </div>
       </div>
     </div>

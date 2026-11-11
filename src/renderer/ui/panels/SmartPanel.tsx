@@ -74,7 +74,7 @@ function Shorts({ editor, cache }: { editor: Editor; cache: MediaCache }) {
     return (
       <div className="smart-body">
         <p className="smart-lead">Turn a long talk or vlog into short vertical clips.</p>
-        <p className="insp-note">Add a video with speech that runs at least 20 seconds. OpenRoll listens, looks for the best stretches and lets you make each one into a 9:16 project with captions.</p>
+        <p className="insp-note">Add a video with speech that runs at least 20 seconds. Motion listens, looks for the best stretches and lets you make each one into a 9:16 project with captions.</p>
       </div>
     );
   }

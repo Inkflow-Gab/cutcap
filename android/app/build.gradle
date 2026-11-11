@@ -11,10 +11,10 @@ def keystorePath = System.getenv("OPENROLL_KEYSTORE")
 def hasSigning = keystorePath != null && new File(keystorePath).exists()
 
 android {
-    namespace = "app.openroll.mobile"
+    namespace = "com.motion.official"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.openroll.mobile"
+        applicationId "com.motion.official"
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
         versionCode = (System.getenv("OPENROLL_VERSION_CODE") ?: "1") as Integer

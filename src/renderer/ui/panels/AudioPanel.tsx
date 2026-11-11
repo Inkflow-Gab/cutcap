@@ -49,7 +49,7 @@ export function AudioPanel({ editor }: { editor: Editor }) {
     } catch {
       rec.close();
       opening.current = false;
-      editor.toast("OpenRoll cannot hear a microphone. Check that one is connected and allowed.", { tone: "error" });
+      editor.toast("Motion cannot hear a microphone. Check that one is connected and allowed.", { tone: "error" });
       return;
     }
     opening.current = false;

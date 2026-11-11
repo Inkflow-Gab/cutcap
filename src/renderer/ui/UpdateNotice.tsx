@@ -42,7 +42,7 @@ export function UpdateNotice() {
     case "available":
       body = (
         <>
-          <span>OpenRoll {state.version} is available.</span>
+          <span>Motion {state.version} is available.</span>
           <button className="toast-undo" onClick={() => void window.openroll.updates.download()}>
             Install
           </button>
@@ -55,7 +55,7 @@ export function UpdateNotice() {
     case "manual":
       body = (
         <>
-          <span>OpenRoll {state.version} is available.</span>
+          <span>Motion {state.version} is available.</span>
           {state.pageUrl && (
             <button className="toast-undo" onClick={() => window.open(state.pageUrl, "_blank")}>
               Download
@@ -72,7 +72,7 @@ export function UpdateNotice() {
       break;
     case "downloading":
       if (!state.asked) return null;
-      body = <span>Downloading OpenRoll {state.version}, {Math.round((state.progress ?? 0) * 100)}%</span>;
+      body = <span>Downloading Motion {state.version}, {Math.round((state.progress ?? 0) * 100)}%</span>;
       break;
     case "current":
       body = <span>You have the latest version.</span>;

@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const JS = join(ROOT, "src/renderer/platform/android.ts");
-const JAVA = join(ROOT, "android/app/src/main/java/app/openroll/mobile/OpenRollNativePlugin.java");
+const JAVA = join(ROOT, "android/app/src/main/java/com/motion/official/MotionNativePlugin.java");
 
 const js = readFileSync(JS, "utf8");
 const java = readFileSync(JAVA, "utf8");

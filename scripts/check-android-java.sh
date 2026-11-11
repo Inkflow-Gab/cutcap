@@ -92,9 +92,9 @@ ecj "$CAP/out" "$SDK:$WORK/annout:$WORK/xout" $(find "$CAPSTUBS" -name '*.java')
 # because app/build.gradle sets `buildFeatures { buildConfig true }`. It is stubbed here so the
 # check fails the same way Gradle does if that flag is ever removed.
 rm -rf "$WORK/appstub"
-mkdir -p "$WORK/appstub/app/openroll/mobile"
-cat > "$WORK/appstub/app/openroll/mobile/BuildConfig.java" <<'EOF'
-package app.openroll.mobile;
+mkdir -p "$WORK/appstub/com/motion/official"
+cat > "$WORK/appstub/com/motion/official/BuildConfig.java" <<'EOF'
+package com.motion.official;
 public final class BuildConfig {
   public static final String VERSION_NAME = "1.0";
   public static final int VERSION_CODE = 1;

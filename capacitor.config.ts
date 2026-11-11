@@ -10,8 +10,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * traffic leaves the device.
  */
 const config: CapacitorConfig = {
-  appId: "app.openroll.mobile",
-  appName: "OpenRoll",
+  appId: "com.motion.official",
+  appName: "Motion",
   webDir: "out/renderer",
   // Every asset is bundled: first paint is a disk read, and the editor must work offline.
   server: {

@@ -49,7 +49,7 @@ function InboxPanel() {
         <b>Messages</b>
       </header>
       {!entries.length ? (
-        <p className="inbox-empty">Nothing new. Updates and news from the OpenRoll team show up here.</p>
+        <p className="inbox-empty">Nothing new. Updates and news from the Motion team show up here.</p>
       ) : (
         <div className="inbox-list">
           {entries.map(e => (

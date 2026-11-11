@@ -58,7 +58,7 @@ export function HistoryDialog({ path, name, note, onClose, onRestored }: Props) 
           </button>
         </header>
         <div className="modal-body">
-          <p className="modal-summary">{note ?? `OpenRoll keeps recent versions of ${name} while you work. Pick one to go back to.`}</p>
+          <p className="modal-summary">{note ?? `Motion keeps recent versions of ${name} while you work. Pick one to go back to.`}</p>
           {entries && !entries.length && <p className="insp-note">No earlier versions yet. They appear as you edit.</p>}
           {!!entries?.length && (
             <ul className="history-list" role="listbox" aria-label="Versions">

@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 /** Parses an HTTP Range header into an inclusive byte span, clamped to the file. */
 final class Range {

@@ -5,7 +5,7 @@ import type { UpdateState } from "../../shared/api";
 
 /**
  * The one native plugin the Android build needs. Every method is answered by
- * OpenRollNativePlugin.java; it is registered by name rather than shipped as a separate
+ * MotionNativePlugin.java; it is registered by name rather than shipped as a separate
  * package because it belongs to this app alone.
  */
 interface NativeBridge {
@@ -57,7 +57,7 @@ interface NativeFile {
 }
 type NativeFiles = { files: NativeFile[] };
 
-const native = registerPlugin<NativeBridge>("OpenRollNative");
+const native = registerPlugin<NativeBridge>("MotionNative");
 
 /**
  * Replaces `window.openroll` on the Android build.
@@ -114,11 +114,11 @@ export function installAndroidApi(): void {
     },
 
     mediaUrl(path: string) {
-      // Mirrors OpenRollNativePlugin.mediaUrlFor: the absolute path without its leading
+      // Mirrors MotionNativePlugin.mediaUrlFor: the absolute path without its leading
       // slash, per segment encoded, under the origin the plugin's client intercepts.
       const normal = path.startsWith("file://") ? path.replace(/^file:\/\//, "") : path;
       const rel = normal.replace(/^\/+/, "");
-      return `https://localhost/openroll-media/${rel.split("/").map(encodeURIComponent).join("/")}`;
+      return `https://localhost/motion-media/${rel.split("/").map(encodeURIComponent).join("/")}`;
     },
 
     async stat(path: string) {
@@ -311,13 +311,13 @@ export function installAndroidApi(): void {
   window.openroll = api;
 
   // Settings written from the native side (there is no other writer today) reach the page here.
-  listen("openroll-settings", data => {
+  listen("motion-settings", data => {
     settings = data as Partial<Settings>;
     for (const handler of settingsListeners) handler(settings as Settings);
   });
 
   // A document shared into the app from another app's share sheet becomes a new project.
-  window.addEventListener("openroll-share", e => {
+  window.addEventListener("motion-share", e => {
     const uri = (e as CustomEvent<string>).detail;
     void importShared(uri);
   });
@@ -327,7 +327,7 @@ const importShared = async (uri: string): Promise<void> => {
   try {
     const { files: imported } = await native.importShared({ uri });
     if (!imported?.length) return;
-    window.dispatchEvent(new CustomEvent("openroll-open-media", { detail: imported }));
+    window.dispatchEvent(new CustomEvent("motion-open-media", { detail: imported }));
   } catch {
     // A share the app cannot read is dropped; the person can still pick the file.
   }

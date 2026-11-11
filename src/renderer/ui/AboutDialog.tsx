@@ -14,7 +14,7 @@ export function AboutDialog({ onClose, onReport }: { onClose(): void; onReport()
 
   return (
     <div className="modal-back" onPointerDown={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-narrow about" role="dialog" aria-label="About OpenRoll">
+      <div className="modal modal-narrow about" role="dialog" aria-label="About Motion">
         <header className="modal-head">
           <span />
           <button className="iconbtn" onClick={onClose} aria-label="Close">
@@ -25,7 +25,7 @@ export function AboutDialog({ onClose, onReport }: { onClose(): void; onReport()
           <div className="about-mark">
             <Logo />
           </div>
-          <h2>OpenRoll</h2>
+          <h2>Motion</h2>
           <p className="about-version num">Version {v.app}</p>
           <p className="about-line">A free, open source video editor. It runs on your computer, needs no account and adds no watermark.</p>
           <p className="about-line">Licensed under the GNU General Public License, version 3 or later.</p>

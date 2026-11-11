@@ -231,8 +231,13 @@ export class Compositor {
 
   /** Output size in device pixels, and the project's frame size the layers are laid out in. */
   resize(outW: number, outH: number, projW: number, projH: number): void {
-    outW = Math.max(2, Math.round(outW));
-    outH = Math.max(2, Math.round(outH));
+    // A phone can hand us a size derived from settings that were not there yet, which arrives as
+    // NaN. Assigning that to canvas.width throws "Value is not of type 'unsigned long'" and takes
+    // the whole preview down, so anything that is not a sane number falls back to the default.
+    outW = Number.isFinite(outW) ? Math.max(2, Math.round(outW)) : 960;
+    outH = Number.isFinite(outH) ? Math.max(2, Math.round(outH)) : 540;
+    projW = Number.isFinite(projW) && projW >= 2 ? Math.round(projW) : outW;
+    projH = Number.isFinite(projH) && projH >= 2 ? Math.round(projH) : outH;
     this.projW = projW;
     this.projH = projH;
     if (this.canvas.width !== outW) this.canvas.width = outW;

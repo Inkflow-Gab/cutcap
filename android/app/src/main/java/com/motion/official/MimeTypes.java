@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 import android.webkit.MimeTypeMap;
 import java.io.File;
@@ -35,7 +35,7 @@ final class MimeTypes {
         EXTRA.put("avif", "image/avif");
         EXTRA.put("heic", "image/heic");
         EXTRA.put("json", "application/json");
-        EXTRA.put("openroll", "application/json");
+        EXTRA.put("motion", "application/json");
         EXTRA.put("cube", "text/plain");
         EXTRA.put("srt", "text/plain");
         EXTRA.put("vtt", "text/vtt");

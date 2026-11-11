@@ -49,7 +49,7 @@ async function waitFor<T>(get: () => T | null | undefined, ms: number, what: str
 }
 
 async function openProject(p: Project, path: string | null): Promise<Editor> {
-  if (!agentContext.open) throw new Error("OpenRoll is still starting.");
+  if (!agentContext.open) throw new Error("Motion is still starting.");
   const previous = agentContext.editor;
   if (previous) await previous.save();
   agentContext.open(p, path);
@@ -389,7 +389,7 @@ export function startAgentHost(): void {
   window.openroll.agent?.onCall(async ({ callId, method, params, client }) => {
     const handler = handlers[method];
     try {
-      if (!handler) throw new Error(`OpenRoll does not know ${method}.`);
+      if (!handler) throw new Error(`Motion does not know ${method}.`);
       const result = await handler((params ?? {}) as Record<string, unknown>, client);
       window.openroll.agent?.reply(callId, { id: callId, result });
     } catch (err) {

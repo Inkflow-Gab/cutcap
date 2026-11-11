@@ -154,10 +154,10 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             </div>
             <div className="set-row">
               <div>
-                <b>Messages from the OpenRoll team</b>
+                <b>Messages from the Motion team</b>
                 <small>News and tips in the bell. The app reads one public file a few times a day and sends nothing about you.</small>
               </div>
-              <Switch label="Messages from the OpenRoll team" value={s.news} onChange={news => updateSettings({ news })} />
+              <Switch label="Messages from the Motion team" value={s.news} onChange={news => updateSettings({ news })} />
             </div>
             <div className="set-row">
               <div>

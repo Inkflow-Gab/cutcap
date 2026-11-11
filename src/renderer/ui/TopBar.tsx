@@ -25,7 +25,7 @@ export function TopBar({ editor, onHome, onExport }: { editor: Editor; onHome():
     <header className="top drag-region">
       <button className="mark no-drag" onClick={onHome} title="All projects">
         <Logo />
-        <span>OpenRoll</span>
+        <span>Motion</span>
       </button>
       <div className="proj no-drag">
         {editing ? (

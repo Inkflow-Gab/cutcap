@@ -55,7 +55,7 @@ export function App() {
       const read = readProject((await window.openroll.projects.load(n.path)) ?? "");
       if (read.ok) {
         const e = open(read.project, n.path);
-        if (recovered) e.toast("OpenRoll hit a problem and reopened your project");
+        if (recovered) e.toast("Motion hit a problem and reopened your project");
       } else {
         setEarlier({ path: n.path, name: n.name, note: `${n.name} could not be opened. ${read.error} Pick an earlier version to go back to.` });
       }
@@ -79,8 +79,8 @@ export function App() {
       const list = (e as CustomEvent<FileInfo[]>).detail;
       if (list?.length) open(createProject(), null, list);
     };
-    window.addEventListener("openroll-open-media", onMedia);
-    return () => window.removeEventListener("openroll-open-media", onMedia);
+    window.addEventListener("motion-open-media", onMedia);
+    return () => window.removeEventListener("motion-open-media", onMedia);
   }, [open]);
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export function App() {
   }, [editor, open]);
 
   useEffect(() => {
-    window.openroll.setTitle(editor ? editor.project.name : "OpenRoll");
+    window.openroll.setTitle(editor ? editor.project.name : "Motion");
     if (editor) hadEditor.current = true;
     else if (hadEditor.current) {
       hadEditor.current = false;

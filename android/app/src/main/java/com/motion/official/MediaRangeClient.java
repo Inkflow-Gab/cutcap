@@ -1,4 +1,4 @@
-package app.openroll.mobile;
+package com.motion.official;
 
 import android.net.Uri;
 import android.webkit.WebResourceRequest;
@@ -24,7 +24,7 @@ import java.util.Map;
  */
 public class MediaRangeClient extends BridgeWebViewClient {
 
-    private static final String PREFIX = "/openroll-media/";
+    private static final String PREFIX = "/motion-media/";
 
     MediaRangeClient(Bridge bridge) {
         super(bridge);
