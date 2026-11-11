@@ -48,17 +48,13 @@ android {
             if (hasSigning) signingConfig signingConfigs.release
         }
     }
-    // One APK per phone architecture: the WebView WASM and native libs are the bulk, and a
-    // phone only ever needs its own. Also produces a universal APK for sideloading anywhere.
-    splits {
-        abi {
-            enable true
-            reset()
-            include "arm64-v8a", "armeabi-v7a", "x86_64"
-            universalApk true
-        }
-    }
+    // No ABI splits. The app ships no native libraries at all (Capacitor and the Filesystem
+    // plugin are pure Java, and the editor's DSP runs as WebAssembly inside the WebView), so a
+    // per-ABI split would emit the same APK four times, four times the packaging work, for no
+    // size gain. One APK installs anywhere.
     packaging {
+        // 16 KB page alignment for .so files: Play requires it for targetSdk 35+, and this app
+        // ships none, so it is here to keep a future native dependency honest.
         jniLibs {
             useLegacyPackaging = false
         }

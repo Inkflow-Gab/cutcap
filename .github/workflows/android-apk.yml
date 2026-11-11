@@ -106,9 +106,60 @@ jobs:
       - name: Collect APKs
         run: |
           mkdir -p apk
-          find android/app/build/outputs/apk -name '*.apk' -exec sh -c 'cp "$1" "apk/openroll-$(basename "$(dirname "$(dirname "$1")")")-$(basename "$1")"' _ {} \;
+          i=0
+          for f in $(find android/app/build/outputs/apk -name '*.apk'); do
+            i=$((i + 1))
+            case "$f" in
+              *release*) cp "$f" "apk/openroll-release.apk" ;;
+              *) cp "$f" "apk/openroll-debug.apk" ;;
+            esac
+          done
+          [ "$i" -gt 0 ] || { echo "::error ::no APK was produced"; exit 1; }
           ls -la apk
 
+      # The APK is the deliverable, and a build that "succeeds" while shipping the wrong thing
+      # is the failure mode this port kept hitting (the export worker was pruned for a while).
+      # Check the contents here, where the numbers also land in the job summary.
+      - name: Check APK contents
+        run: |
+          set -euo pipefail
+          APK=apk/openroll-release.apk
+          [ -f "$APK" ] || APK=apk/openroll-debug.apk
+
+          # A release built without signing secrets is unsigned and cannot install. Say so
+          # instead of shipping it as if it worked.
+          if command -v apksigner >/dev/null 2>&1 && [ "$APK" = apk/openroll-release.apk ]; then
+            apksigner verify "$APK" || echo "::warning ::release APK is unsigned; set the OPENROLL_KEYSTORE secrets"
+          fi
+
+          KB=$(du -k "$APK" | cut -f1)
+          JS=$(unzip -l "$APK" | grep -c 'assets/public/assets/.*\.js$' || true)
+          FONTS=$(unzip -l "$APK" | grep -c 'assets/public/assets/.*\.woff2$' || true)
+          {
+            echo "### APK"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| file | \`$(basename "$APK")\` |"
+            echo "| size | $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB |"
+            echo "| js assets | $JS |"
+            echo "| fonts | $FONTS |"
+            echo ""
+            echo "| bundled worker / worklet | KB |"
+            echo "|---|---|"
+            unzip -l "$APK" | grep 'assets/public/assets/' | grep -E 'worker|worklet|index-' \
+              | awk '{printf "| %s | %d |\n", $4, $1/1024}' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # The workers and the audio worklet are the difference between an editor and a viewer.
+          # Missing one is a build bug, not a packaging choice.
+          for needed in export.worker media.worker preview.worker dsp.worklet index-; do
+            if ! unzip -l "$APK" | grep -q "assets/public/assets/$needed"; then
+              echo "::error ::$needed is missing from the APK's web assets"
+              exit 1
+            fi
+          done
+          echo "web assets complete"
       - uses: actions/upload-artifact@v4
         with:
           name: openroll-apk
