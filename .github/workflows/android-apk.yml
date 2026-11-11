@@ -123,14 +123,12 @@ jobs:
       - name: Check APK contents
         run: |
           set -euo pipefail
+          # openroll-release.apk is released first: it is the shrunk, installable build. It is
+          # signed with the debug key unless OPENROLL_KEYSTORE secrets are set, which still
+          # installs fine but fails Play upload validation.
           APK=apk/openroll-release.apk
           [ -f "$APK" ] || APK=apk/openroll-debug.apk
-
-          # A release built without signing secrets is unsigned and cannot install. Say so
-          # instead of shipping it as if it worked.
-          if command -v apksigner >/dev/null 2>&1 && [ "$APK" = apk/openroll-release.apk ]; then
-            apksigner verify "$APK" || echo "::warning ::release APK is unsigned; set the OPENROLL_KEYSTORE secrets"
-          fi
+          apksigner verify "$APK" || { echo "::error ::$APK is not signed and cannot install"; exit 1; }
 
           KB=$(du -k "$APK" | cut -f1)
           JS=$(unzip -l "$APK" | grep -c 'assets/public/assets/.*\.js$' || true)
@@ -160,6 +158,7 @@ jobs:
             fi
           done
           echo "web assets complete"
+          echo "::notice ::$(basename "$APK") is $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB with $JS js assets and $FONTS fonts"
       - uses: actions/upload-artifact@v4
         with:
           name: openroll-apk

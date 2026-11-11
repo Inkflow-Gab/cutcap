@@ -1,11 +1,12 @@
 apply plugin: 'com.android.application'
 
-// Version and signing come from the environment: CI sets them from the repository secrets,
-// a local build gets sensible defaults, and a release built without keys stays unsigned.
-
-// Signing comes from the environment so a fork can build without secrets and CI can sign
-// with repository secrets. Without them the release APK is unsigned and still installable
-// only after signing; the debug build needs no keys at all.
+// Version and signing come from the environment: CI sets them from the repository secrets, a
+// local build gets sensible defaults, and a release built without keys is still installable.
+//
+// A release built without secrets is signed with the debug keystore. That is what makes the APK
+// from a fork or from CI without secrets something a person can sideload; an unsigned release
+// APK is not installable at all, which would make the artifact useless. Play uploads need the
+// real key, and those come from OPENROLL_KEYSTORE*.
 def keystorePath = System.getenv("OPENROLL_KEYSTORE")
 def hasSigning = keystorePath != null && new File(keystorePath).exists()
 
@@ -45,7 +46,8 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (hasSigning) signingConfig signingConfigs.release
+            // Sideloadable either way; see the note at the top of this file.
+            signingConfig hasSigning ? signingConfigs.release : signingConfigs.debug
         }
     }
     // No ABI splits. The app ships no native libraries at all (Capacitor and the Filesystem
