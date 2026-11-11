@@ -62,13 +62,26 @@ public class ExportService extends Service {
         return null;
     }
 
+    /**
+     * Asks for the foreground slot. This is a keep-alive, never a prerequisite: if Android
+     * refuses the start (a background start, the daily mediaProcessing budget, a vendor's own
+     * policy) the render must still run while the app is on screen, so the failure is swallowed
+     * and the export continues without the guarantee.
+     */
     static void begin(Context context, String text) {
         Intent intent = new Intent(context, ExportService.class).putExtra("text", text);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
-        else context.startService(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (RuntimeException refused) {
+            // ForegroundServiceStartNotAllowedException and friends.
+        }
     }
 
     static void end(Context context) {
-        context.stopService(new Intent(context, ExportService.class));
+        try {
+            context.stopService(new Intent(context, ExportService.class));
+        } catch (RuntimeException ignored) {
+        }
     }
 }

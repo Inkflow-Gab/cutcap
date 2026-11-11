@@ -66,6 +66,11 @@ android {
             excludes += ["META-INF/*.kotlin_module", "META-INF/AL2.0", "META-INF/LGPL2.1"]
         }
     }
+    buildFeatures {
+        // systemInfo() reports the app version from BuildConfig; AGP 8 does not generate it
+        // unless it is asked for.
+        buildConfig true
+    }
     lint {
         abortOnError = false
         checkReleaseBuilds = false
