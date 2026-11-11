@@ -101,6 +101,20 @@ npm run dev        # run with live reload
 
 Tests, packaging and the code style are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+### Android
+
+The APK is built by CI on every push that touches the Android layer, and is attached to the run as
+the `openroll-apk` artifact. To build one locally you need a JDK 21 and the Android SDK 36:
+
+```sh
+npm ci --ignore-scripts
+npm run android:sync
+cd android && ./gradlew assembleRelease
+```
+
+[docs/ANDROID.md](docs/ANDROID.md) covers what differs on a phone, what the build leaves out, and
+the two checks that run without the Android SDK.
+
 ## How it works
 
 - **Engine.** Media is decoded with WebCodecs through [Mediabunny](https://mediabunny.dev), on the hardware decoder when there is one. A WebGL2 compositor draws every frame in a worker, so the interface never waits on video.
