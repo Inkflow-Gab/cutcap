@@ -191,16 +191,24 @@ jobs:
           done
           # The APK's identity is the thing a rename can silently miss: a stale
           # applicationId still installs, just as a second app.
-          # The label is on its own line of the badging, not the package line.
-          BADGING=$("$AAPT" dump badging "$APK" 2>/dev/null | head -12 || true)
-          echo "$BADGING"
-          case "$BADGING" in
-            *"package: name='com.motion.official'"*) ;;
-            *) echo "::error ::APK package is not com.motion.official: $(echo "$BADGING" | head -1)"; exit 1 ;;
+          #
+          # Read the whole badging and pick the two lines out of it by name. The first version of
+          # this check used `head -12`, which was wrong twice over: it cut the package line off
+          # before the label could match at all, and once fixed it kept working only for as long
+          # as the app declared few enough permissions — three more pushed the label past line 12
+          # and broke a build whose APK was perfectly correct.
+          BADGING=$("$AAPT" dump badging "$APK" 2>/dev/null || true)
+          PACKAGE_LINE=$(printf '%s\n' "$BADGING" | grep -m1 '^package: ' || true)
+          LABEL_LINE=$(printf '%s\n' "$BADGING" | grep -m1 '^application-label:' || true)
+          echo "${PACKAGE_LINE:-package: none}"
+          echo "label: ${LABEL_LINE:-none}"
+          case "$PACKAGE_LINE" in
+            *"name='com.motion.official'"*) ;;
+            *) echo "::error ::APK package is not com.motion.official: ${PACKAGE_LINE:-none}"; exit 1 ;;
           esac
-          case "$BADGING" in
-            *"application-label:'Motion'"*) ;;
-            *) echo "::error ::APK label is not Motion: $(echo "$BADGING" | grep -m1 application-label || echo none)"; exit 1 ;;
+          case "$LABEL_LINE" in
+            *"'Motion'"*) ;;
+            *) echo "::error ::APK label is not Motion: ${LABEL_LINE:-none}"; exit 1 ;;
           esac
 
           # Reading the gallery needs these at runtime. Capacitor refuses to request a permission
