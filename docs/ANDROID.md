@@ -78,9 +78,19 @@ two thousand photos costs nothing until something is picked. The renderer addres
 MediaStore id, never by a `content://` URI, because the WebView cannot load one.
 
 Reading the gallery needs `READ_MEDIA_IMAGES` and `READ_MEDIA_VIDEO` on Android 13+, and
-`READ_EXTERNAL_STORAGE` below that. Access is requested the first time the gallery opens; refusing it
-leaves the sheet explaining why and offering "Files", which is the system picker, so a clip from
-Downloads or a USB stick is still reachable.
+`READ_EXTERNAL_STORAGE` (capped at API 32) below that. Access is requested the first time the gallery
+opens.
+
+The permissions have to be in `AndroidManifest.xml` as well as on the plugin's `@CapacitorPlugin`
+annotation. Capacitor does not show a dialog for an undeclared permission — it rejects the call with
+"Missing the following permissions in AndroidManifest.xml" — so a missing entry makes the gallery
+fail to open with nothing in the UI to explain it. `scripts/check-permissions.mjs` compares the two,
+and CI reads the built APK's manifest with `aapt`, which also catches the merger dropping an entry.
+
+Each kind is granted separately on Android 13+. Allowing photos and declining videos still leaves
+the Photos tab working. A refusal leaves the sheet saying which permission is missing, with a button
+that opens this app's page in Settings and a Try again that re-reads without closing it; "Files"
+remains available, so a clip from Downloads or a USB stick is still reachable.
 
 ## Storage
 
