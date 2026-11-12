@@ -151,6 +151,8 @@ export interface OpenRollApi {
    * gallery. Present on Android, where MediaStore knows about albums and recency.
    */
   gallery?: GalleryApi;
+  /** Opens this app's page in system Settings, where a declined permission can be changed. */
+  openAppSettings?(): Promise<void>;
   /** Paths for files dropped onto the window. */
   pathsForDropped(files: File[]): Promise<FileInfo[]>;
   /** URL the renderer can fetch (with Range) to read an allowed file. */

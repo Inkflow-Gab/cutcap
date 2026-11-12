@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.provider.OpenableColumns;
 import androidx.activity.result.ActivityResult;
 import androidx.core.content.FileProvider;
@@ -66,7 +67,6 @@ import org.json.JSONObject;
         // the gallery through READ_EXTERNAL_STORAGE, which the manifest caps at API 32.
         @Permission(alias = "images", strings = { "android.permission.READ_MEDIA_IMAGES" }),
         @Permission(alias = "video", strings = { "android.permission.READ_MEDIA_VIDEO" }),
-        @Permission(alias = "audio", strings = { "android.permission.READ_MEDIA_AUDIO" }),
         @Permission(alias = "storage", strings = { "android.permission.READ_EXTERNAL_STORAGE" })
     }
 )
@@ -135,18 +135,18 @@ public class MotionNativePlugin extends Plugin {
      * leading slash dropped and every segment encoded, which MediaRangeClient decodes back.
      */
     String mediaUrlFor(String path) {
-        // A gallery thumbnail is generated on first request; the grid asks for dozens at once and
-        // a second pass over the same album finds them all already written.
-        if (path.startsWith("thumb:")) {
-            String[] parts = path.split(":", 3);
-            if (parts.length == 3) {
-                try {
-                    File f = thumbnailFile(parts[1], Long.parseLong(parts[2]));
-                    if (f != null) path = f.getAbsolutePath();
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
+        return mediaUrl(path);
+    }
+
+    /**
+     * A URL for a file, or for a gallery thumbnail.
+     *
+     * A `thumb:` path is not a file: it names a MediaStore row, and MediaRangeClient makes the
+     * JPEG when the WebView actually asks for it. That matters — building URLs for a listing must
+     * never decode the photos in it, or opening an album of 4000 pictures would decode 4000 of
+     * them before the first tile appeared.
+     */
+    static String mediaUrl(String path) {
         String p = path.startsWith("file://") ? Uri.parse(path).getPath() : path;
         if (p == null) p = "";
         String rel = p.startsWith("/") ? p.substring(1) : p;
@@ -168,7 +168,7 @@ public class MotionNativePlugin extends Plugin {
     @PluginMethod
     public void galleryPickAlbum(PluginCall call) {
         String kind = call.getString("kind", "image");
-        if (!galleryAllowed(call, "galleryAlbums")) return;
+        if (!galleryAllowed(call, "galleryAlbums", kind)) return;
         io.execute(() -> {
             try {
                 call.resolve(galleryAlbums(kind));
@@ -181,7 +181,7 @@ public class MotionNativePlugin extends Plugin {
     @PluginMethod
     public void galleryList(PluginCall call) {
         String kind = call.getString("kind", "image");
-        if (!galleryAllowed(call, "galleryItems")) return;
+        if (!galleryAllowed(call, "galleryItems", kind)) return;
         io.execute(() -> {
             try {
                 call.resolve(galleryItems(kind));
@@ -222,45 +222,46 @@ public class MotionNativePlugin extends Plugin {
     }
 
     /**
-     * Asks for read access to photos and videos the first time, and answers whether it is there.
+     * Guards a gallery read: true when the read may go ahead.
      *
-     * One permission for both, not one per tab: the grid can switch between Photos and Videos at
-     * any moment, and a second system dialog for a tab tap would be a surprise. On 33+ the two are
-     * separate grants; the older READ_EXTERNAL_STORAGE covers both. Declined once means answered —
-     * the sheet says the gallery is not readable rather than prompting forever.
-     */
-    /**
-     * Guards a gallery read: true when it may go ahead, false when something else will settle it.
+     * Three outcomes, and the difference matters. Granted: read. Not answered yet: the system
+     * dialog goes up and the callback re-runs the caller, so nothing is settled here. Answered
+     * no: reject, because a promise that never settles leaves the sheet spinning over an empty
+     * grid forever.
      *
-     * Three outcomes, and the difference matters. Granted: read. Not yet answered: the system
-     * dialog goes up and the callback re-runs the call, so nothing is settled here. Answered no:
-     * reject, because a promise that never settles leaves the sheet spinning over an empty grid.
+     * The gate is per kind — a person who allows photos and declines videos still gets their
+     * photos — but the first dialog asks for both, so tapping between the tabs does not raise a
+     * second prompt straight after the first.
      */
-    private boolean galleryAllowed(PluginCall call, String callback) {
-        if (hasGalleryAccess()) return true;
+    private boolean galleryAllowed(PluginCall call, String callback, String kind) {
+        String alias = aliasFor(kind);
+        if (has(alias)) return true;
+        PermissionState state = getPermissionState(alias);
+        if (state != PermissionState.PROMPT && state != PermissionState.PROMPT_WITH_RATIONALE) {
+            // Answered no, or the alias is not declared at all. Both mean waiting will not help.
+            call.reject(kind.equals("video")
+                ? "Allow access to videos in Settings to browse your videos."
+                : "Allow access to photos in Settings to browse your photos.");
+            return false;
+        }
+        // Below 33 there is one permission for both kinds. Above it, asking for the storage
+        // permission raises a dialog the system never shows, so the request would come back
+        // empty and the callback would never fire: the aliases have to match the API level.
         String[] aliases = Build.VERSION.SDK_INT >= 33
             ? new String[] { "images", "video" }
             : new String[] { "storage" };
-        boolean asked = false;
-        for (String alias : aliases) {
-            PermissionState state = getPermissionState(alias);
-            if (state == PermissionState.PROMPT || state == PermissionState.PROMPT_WITH_RATIONALE) asked = true;
-        }
-        if (!asked) {
-            call.reject("Allow access to photos and videos in Settings to browse your gallery.");
-            return false;
-        }
-        if (Build.VERSION.SDK_INT >= 33) requestPermissionForAliases(aliases, call, callback);
-        else requestPermissionForAlias("storage", call, callback);
+        requestPermissionForAliases(aliases, call, callback);
         return false;
     }
 
-    private boolean hasGalleryAccess() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            return getPermissionState("images") == PermissionState.GRANTED
-                || getPermissionState("video") == PermissionState.GRANTED;
-        }
-        return getPermissionState("storage") == PermissionState.GRANTED;
+    /** The permission this kind of item is actually read with. */
+    private static String aliasFor(String kind) {
+        if (Build.VERSION.SDK_INT < 33) return "storage";
+        return kind.equals("video") ? "video" : "images";
+    }
+
+    private boolean has(String alias) {
+        return getPermissionState(alias) == PermissionState.GRANTED;
     }
 
     @PermissionCallback
@@ -349,58 +350,13 @@ public class MotionNativePlugin extends Plugin {
                 o.put("added", c.getLong(2) * 1000L);
                 o.put("album", c.getString(3) != null ? c.getString(3) : "");
                 o.put("size", c.getLong(4));
-                o.put("thumb", mediaUrlFor("thumb:" + kind + ":" + id));
+                // The URL names the row; the handler makes the JPEG on the first request.
+                // Generating them here would mean decoding 4000 photos before the grid appeared.
+                o.put("thumb", mediaUrl("thumb:" + kind + ":" + id));
                 items.put(o);
             }
         }
         return new JSObject().put("items", items);
-    }
-
-    /**
-     * A thumbnail for one gallery row.
-     *
-     * The WebView cannot hold content:// URIs, and loading a 12 MP photo to show a 120 px square
-     * is what makes a phone gallery stutter. This asks MediaStore for a small bitmap and writes it
-     * to the cache once, so scrolling the grid reads a file the size of a thumbnail.
-     */
-    private File thumbnailFile(String kind, long id) {
-        // Under cache/, so Clear cache takes them with it: they are rebuildable from the gallery.
-        File dir = dir("cache/thumbs");
-        File f = new File(dir, kind + "-" + id + ".jpg");
-        if (f.exists() && f.length() > 0) return f;
-        Uri uri = uriFor(kind, id);
-        try {
-            if (Build.VERSION.SDK_INT >= 29) {
-                android.graphics.Bitmap bmp = getContext().getContentResolver().loadThumbnail(uri, new android.util.Size(320, 320), null);
-                try (FileOutputStream out = new FileOutputStream(f)) {
-                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, out);
-                }
-                bmp.recycle();
-                return f;
-            }
-            // Older versions: full decode, then scale down before writing.
-            try (InputStream in = getContext().getContentResolver().openInputStream(uri)) {
-                if (in == null) return null;
-                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeStream(in);
-                if (bmp == null) return null;
-                int side = Math.min(bmp.getWidth(), bmp.getHeight());
-                int target = Math.min(320, side);
-                android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(
-                    bmp,
-                    Math.max(1, (int) ((long) bmp.getWidth() * target / side)),
-                    Math.max(1, (int) ((long) bmp.getHeight() * target / side)),
-                    true
-                );
-                try (FileOutputStream out = new FileOutputStream(f)) {
-                    small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 82, out);
-                }
-                if (small != bmp) small.recycle();
-                bmp.recycle();
-                return f;
-            }
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     // ---------------------------------------------------------------- picking
@@ -1277,6 +1233,25 @@ public class MotionNativePlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject(e.getMessage() != null ? e.getMessage() : "That export could not be shared.");
+        }
+    }
+
+    /**
+     * Opens this app's page in system Settings.
+     *
+     * A declined permission can only be changed there, and saying "allow it in Settings" without
+     * offering to open it is the kind of dead end that reads as a broken app.
+     */
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.fromParts("package", getContext().getPackageName(), null));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Settings could not be opened.");
         }
     }
 

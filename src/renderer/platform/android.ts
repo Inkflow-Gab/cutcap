@@ -48,6 +48,7 @@ interface NativeBridge {
   sessionClosed(): Promise<void>;
   shareExport(options: { path: string; mime?: string }): Promise<void>;
   revealInFolder(options: { path: string }): Promise<void>;
+  openAppSettings(): Promise<void>;
   systemInfo(): Promise<Record<string, unknown>>;
   addListener(event: string, handler: (data: Record<string, unknown>) => void): Promise<PluginListenerHandle>;
 }
@@ -162,6 +163,8 @@ export function installAndroidApi(): void {
       // No folder to open on a phone: the person gets the system share sheet instead.
       await call("shareExport", { path }).catch(() => {});
     },
+
+    openAppSettings: () => call("openAppSettings"),
 
     relink: {
       // Everything the editor reads is copied into app storage, which nothing else removes.

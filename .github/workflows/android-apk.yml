@@ -12,6 +12,8 @@ on:
       - "scripts/build-android.mjs"
       - "scripts/make-android-icons.mjs"
       - "scripts/java-check/**"
+      - "scripts/check-permissions.mjs"
+      - "test/**"
       - "src/**"
       - "package.json"
       - "vite.config.ts"
@@ -65,6 +67,14 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Permissions are declared
+        run: node scripts/check-permissions.mjs
+
+      # Selection order and native error messages are behaviour, not types: they type-check
+      # perfectly while being wrong, so they are covered by tests.
+      - name: Unit tests
+        run: ./node_modules/.bin/vitest run
 
       - name: Version name
         run: echo "OPENROLL_VERSION_NAME=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
@@ -192,6 +202,19 @@ jobs:
             *"application-label:'Motion'"*) ;;
             *) echo "::error ::APK label is not Motion: $(echo "$BADGING" | grep -m1 application-label || echo none)"; exit 1 ;;
           esac
+
+          # Reading the gallery needs these at runtime. Capacitor refuses to request a permission
+          # that is not declared, and Android cannot grant one that is not declared, so a missing
+          # entry here means the gallery never opens — silently, on the device only. Reading the
+          # APK rather than the source is deliberate: the manifest merger can drop an entry.
+          MANIFEST_PERMS=$("$AAPT" dump permissions "$APK" 2>/dev/null || true)
+          echo "$MANIFEST_PERMS"
+          for perm in READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_EXTERNAL_STORAGE; do
+            case "$MANIFEST_PERMS" in
+              *"android.permission.$perm"*) ;;
+              *) echo "::error ::$perm is not declared in the APK; the gallery cannot be granted"; exit 1 ;;
+            esac
+          done
 
           echo "web assets complete"
           if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/motion-release.apk ]; then

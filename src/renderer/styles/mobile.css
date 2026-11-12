@@ -869,3 +869,13 @@
   text-align: center;
 }
 .gallery-blocked p { margin: 0; max-width: 34ch; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+
+/* A row the system cannot render: deleted, on a removed card, or an unreadable format. */
+.gallery-broken {
+  display: grid;
+  place-items: center;
+  width: 100%; height: 100%;
+  color: color-mix(in srgb, var(--ink-2) 70%, transparent);
+  background: var(--pane-2);
+}
+.gallery-blocked-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }

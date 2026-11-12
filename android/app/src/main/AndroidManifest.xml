@@ -74,6 +74,20 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- The editor reads whatever media the person picks; no storage permission is needed
-         because everything goes through the document picker and app-private storage. -->
+    <!--
+        Reading the phone's own gallery. Android 13 split storage access into per-type grants;
+        READ_EXTERNAL_STORAGE still covers 12 and below, and is capped at 32 so it is never
+        requested on a version that would silently ignore it.
+
+        Every string here is declared, because Capacitor refuses a request whose permissions are
+        missing from the manifest — it rejects the call instead of showing a dialog. Getting this
+        wrong is silent on device: the gallery just never opens.
+    -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <!-- Everything else goes through the document picker and app-private storage. -->
 </manifest>

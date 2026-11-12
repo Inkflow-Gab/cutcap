@@ -26,8 +26,12 @@ public class MediaRangeClient extends BridgeWebViewClient {
 
     private static final String PREFIX = "/motion-media/";
 
+    /** Kept because the base class holds its own copy privately. */
+    private final Bridge bridge;
+
     MediaRangeClient(Bridge bridge) {
         super(bridge);
+        this.bridge = bridge;
     }
 
     @Override
@@ -41,12 +45,43 @@ public class MediaRangeClient extends BridgeWebViewClient {
             return super.shouldInterceptRequest(view, request);
         }
         String relative = path.substring(PREFIX.length());
-        File file = new File(Uri.decode(relative));
+        String decoded = Uri.decode(relative);
+        // A gallery thumbnail is not a file yet: it names a MediaStore row, and the JPEG is made
+        // here, the first time the WebView asks. Only tiles on screen ask, so a grid of thousands
+        // decodes only the photos actually looked at.
+        if (decoded.startsWith("thumb:")) return thumbnail(decoded);
+        File file = new File(decoded);
         if (!file.isFile()) return notFound();
 
         String range = request.getRequestHeaders().get("Range");
         try {
             return range == null ? whole(file) : partial(file, range);
+        } catch (IOException e) {
+            return notFound();
+        }
+    }
+
+    /**
+     * Serves a gallery thumbnail, making it once.
+     *
+     * `thumb:<kind>:<MediaStore id>` becomes a cached 320 px JPEG. A row that has vanished — a
+     * photo deleted between listing the album and looking at it — answers 404 rather than a
+     * broken image, and the tile shows its placeholder.
+     */
+    private WebResourceResponse thumbnail(String spec) {
+        String[] parts = spec.split(":", 3);
+        if (parts.length != 3) return notFound();
+        long id;
+        try {
+            id = Long.parseLong(parts[2]);
+        } catch (NumberFormatException e) {
+            return notFound();
+        }
+        File cached = Thumbnails.cached(bridge.getContext(), parts[1], id);
+        if (cached == null) cached = Thumbnails.make(bridge.getContext(), parts[1], id);
+        if (cached == null) return notFound();
+        try {
+            return whole(cached);
         } catch (IOException e) {
             return notFound();
         }

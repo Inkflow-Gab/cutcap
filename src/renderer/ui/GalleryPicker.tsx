@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FileInfo, GalleryAlbum, GalleryItem } from "../../shared/api";
 import { Icon } from "./kit/Icon";
+import { nativeMessage } from "../platform/native-error";
 
 /**
  * Picks photos and videos from the device's own gallery.
@@ -68,6 +69,11 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
   const [error, setError] = useState<string | null>(null);
   // A refusal needs an explanation and a way out, not a grid that stays empty.
   const [blocked, setBlocked] = useState(false);
+  // Which rows the system could not give a picture for. A deleted photo is a normal thing to
+  // meet while scrolling an old album; it should look like one, not like a bug in the grid.
+  const [broken, setBroken] = useState<ReadonlySet<number>>(new Set());
+  // Bumped by Try again, so the effect re-reads after a refusal has been answered in Settings.
+  const [attempt, setAttempt] = useState(0);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -88,6 +94,8 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
     setAlbum(null);
     setPicked([]);
     setError(null);
+    setBlocked(false);
+    setBroken(new Set());
     void (async () => {
       try {
         const [a, i] = await Promise.all([gallery.albums(kind), gallery.items(kind)]);
@@ -96,12 +104,13 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
         setItems(i);
       } catch (e) {
         if (!alive.current) return;
-        const message = (e as Error).message || "The gallery could not be read.";
+        const message = nativeMessage(e, "The gallery could not be read.");
         setError(message);
-        setBlocked(/access to photos/i.test(message));
+        // Both refusals name what is blocked; either one means the grid will never load.
+        setBlocked(/allow access to/i.test(message));
       }
     })();
-  }, [kind]);
+  }, [kind, attempt]);
 
   const shown = useMemo(() => (items ? arrange(items, album, sort) : null), [items, album, sort]);
 
@@ -122,7 +131,7 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
           : `Those ${failed} could not be read. They may have been deleted, or be on a card that is gone.`
       );
     } catch (e) {
-      setError((e as Error).message || "Those photos could not be imported.");
+      setError(nativeMessage(e, "Those photos could not be imported."));
     } finally {
       setBusy(false);
     }
@@ -201,11 +210,21 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
       {blocked && (
         <div className="gallery-blocked">
           <p>Motion needs to see your photos and videos to add them to a project. Nothing is uploaded — everything stays on this phone.</p>
-          {onBrowseFiles && (
-            <button className="gallery-files" onClick={onBrowseFiles}>
-              Pick a file instead
+          <div className="gallery-blocked-actions">
+            {window.openroll.openAppSettings && (
+              <button className="gallery-add" onClick={() => void window.openroll.openAppSettings?.()}>
+                Open Settings
+              </button>
+            )}
+            <button className="gallery-files" onClick={() => setAttempt(a => a + 1)}>
+              Try again
             </button>
-          )}
+            {onBrowseFiles && (
+              <button className="gallery-files" onClick={onBrowseFiles}>
+                Pick a file instead
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -217,7 +236,14 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
             const item = items?.find(x => x.id === id);
             return (
               <button key={id} className="gallery-chip" onClick={() => tap(id)} aria-label={`Remove ${item?.name ?? "this one"}`}>
-                {item && <img src={item.thumb} alt="" draggable={false} />}
+                {item && (
+                  <img
+                    src={item.thumb}
+                    alt=""
+                    draggable={false}
+                    onError={() => setBroken(b => new Set(b).add(id))}
+                  />
+                )}
                 <span className="gallery-chip-n">{i + 1}</span>
               </button>
             );
@@ -236,7 +262,22 @@ export function GalleryPicker({ onClose, onPicked, kind: initial = "image", onBr
               aria-pressed={order >= 0}
               aria-label={order >= 0 ? `${item.name}, number ${order + 1} in the selection` : item.name}
             >
-              <img src={item.thumb} alt="" loading="lazy" decoding="async" draggable={false} />
+              {broken.has(item.id) ? (
+                // Deleted, on a card that is gone, or a format the phone cannot decode. A tile
+                // that says so is better than a blank square that looks like a bug.
+                <span className="gallery-broken">
+                  <Icon name="warning" size={16} />
+                </span>
+              ) : (
+                <img
+                  src={item.thumb}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  onError={() => setBroken(b => new Set(b).add(item.id))}
+                />
+              )}
               {order >= 0 && <span className="gallery-order">{order + 1}</span>}
               {kind === "video" && <span className="gallery-play"><Icon name="play" size={12} /></span>}
             </button>

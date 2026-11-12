@@ -15,6 +15,10 @@ OPENROLL=$(cd "$(dirname "$0")/.." && pwd)
 # The bridge's names are strings on both sides, so nothing else checks that the renderer and the
 # plugin agree. Do that before the compile, since it is instant.
 node "$OPENROLL/scripts/check-bridge.mjs"
+# A permission alias whose strings are not in the manifest cannot be granted: Capacitor rejects
+# the call instead of showing a dialog, so on device the gallery simply never opens. Nothing else
+# compares the two files, which is how that shipped once already.
+node "$OPENROLL/scripts/check-permissions.mjs"
 STUBS="$OPENROLL/scripts/java-check/stubs"
 WORK=${OPENROLL_JAVA_CHECK_DIR:-/tmp/openroll-java-check}
 mkdir -p "$WORK"
