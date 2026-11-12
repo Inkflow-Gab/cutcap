@@ -11,6 +11,7 @@ import { FontPicker } from "../kit/FontPicker";
 import { SmartCut } from "./SmartCut";
 import { Specimen } from "./Specimen";
 import { Transcript } from "./Transcript";
+import { nativeMessage } from "../../platform/native-error";
 
 type View = "styles" | "transcript" | "cut";
 
@@ -94,7 +95,7 @@ export function CaptionsPanel({ editor }: { editor: Editor }) {
       editor.toast(`Saved ${kind.toUpperCase()} with ${cues.length} captions`);
     } catch (err) {
       await window.openroll.closeWriter(w.id, true);
-      editor.toast(`Could not save: ${(err as Error).message}`, { tone: "error" });
+      editor.toast(`Could not save: ${nativeMessage(err, "the captions could not be written")}`, { tone: "error" });
     }
   }
 

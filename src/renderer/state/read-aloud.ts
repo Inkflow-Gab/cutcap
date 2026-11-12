@@ -2,6 +2,7 @@ import { VOICES, type TtsOut } from "../../engine/tts-protocol";
 import type { TextItem } from "../../core/project";
 import type { Editor } from "./editor";
 import { addMadeSound, saveWavRecording } from "./sounds";
+import { nativeMessage } from "../platform/native-error";
 
 export { VOICES };
 
@@ -48,7 +49,7 @@ export async function readAloud(editor: Editor, item: TextItem, voice: string, o
     if (!file) throw new Error("The speech could not be saved");
     await addMadeSound(editor, file, "speech", item.start, "Read aloud");
   } catch (err) {
-    editor.toast(`Could not read aloud: ${(err as Error).message}`, { tone: "error" });
+    editor.toast(`Could not read aloud: ${nativeMessage(err, "the voice could not be loaded")}`, { tone: "error" });
   } finally {
     onProgress(null);
   }

@@ -3,6 +3,7 @@ import { aiFor } from "../../state/ai";
 import type { Editor } from "../../state/editor";
 import { Icon } from "../kit/Icon";
 import { AiStatusRow } from "./AiStatusRow";
+import { nativeMessage } from "../../platform/native-error";
 
 type Pair = { before: ImageBitmap; after: ImageBitmap; seconds: number };
 
@@ -20,7 +21,7 @@ export function EnhanceCompare({ editor, itemId, onClose }: { editor: Editor; it
     let alive = true;
     job.result.then(
       r => alive && setPair(r),
-      e => alive && (e as Error).message !== "cancelled" && setError((e as Error).message),
+      e => alive && nativeMessage(e, "") !== "cancelled" && setError(nativeMessage(e, "That did not work.")),
     );
     return () => {
       alive = false;

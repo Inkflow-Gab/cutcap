@@ -6,6 +6,7 @@ import type { SpeechModel } from "../../engine/speech-protocol";
 import { derived } from "./derived-media";
 import type { Editor } from "./editor";
 import { SpeechCancelled, SpeechClient } from "./speech";
+import { nativeMessage } from "../platform/native-error";
 
 export interface ListenSettings {
   language: string | null;
@@ -156,7 +157,7 @@ export class CaptionService {
     } catch (err) {
       this.cancelCurrent = null;
       if (err instanceof SpeechCancelled || this.cancelled) this.set({ ...IDLE });
-      else this.set({ ...IDLE, phase: "error", message: friendly((err as Error).message) });
+      else this.set({ ...IDLE, phase: "error", message: friendly(nativeMessage(err, "")) });
       return null;
     }
   }

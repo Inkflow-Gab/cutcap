@@ -4,6 +4,7 @@ import { fitSize } from "../../../core/scene";
 import type { AiEvent, AiRequest, AiSync, MatteTrack } from "../../../engine/ai/protocol";
 import type { Editor } from "../editor";
 import { deflate, digest, inflate } from "./zip";
+import { nativeMessage } from "../../platform/native-error";
 
 export type AiFeature = "cutout" | "stabilize" | "reframe";
 
@@ -146,7 +147,7 @@ export class AiManager {
       this.setStatus(feature, media.id, { state: "queued", progress: 0, label: "Waiting" });
       await this.runJob(feature, media, from, to, quality);
     } catch (err) {
-      const message = (err as Error).message;
+      const message = nativeMessage(err, "That did not work.");
       if (message !== "cancelled") this.setStatus(feature, media.id, { state: "error", progress: 0, message });
     } finally {
       this.starting.delete(key);
@@ -190,7 +191,7 @@ export class AiManager {
     try {
       this.ensureWorker().postMessage(req);
     } catch (err) {
-      const message = (err as Error).message;
+      const message = nativeMessage(err, "That did not work.");
       this.setStatus(feature, mediaId, { state: "error", progress: 0, message });
       reject(new Error(message));
     }
@@ -413,7 +414,8 @@ export class AiManager {
     try {
       subject = (await this.runJob("reframe", media, from, to, "fast", itemId)).subject;
     } catch (err) {
-      if ((err as Error).message !== "cancelled") this.editor.toast((err as Error).message, { tone: "error" });
+      const message = nativeMessage(err, "That did not work.");
+      if (message !== "cancelled") this.editor.toast(message, { tone: "error" });
       return { found: false };
     }
     const samples = subject?.samples ?? [];

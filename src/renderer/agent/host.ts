@@ -16,6 +16,7 @@ import { importFiles } from "../state/importer";
 import type { MediaCache } from "../state/media-cache";
 import { buildCatalog } from "./catalog";
 import { templateStore, templateSummaries } from "../state/templates";
+import { nativeMessage } from "../platform/native-error";
 
 /** What the host needs from the rest of the app; filled in by App and EditorView. */
 export const agentContext = {
@@ -393,7 +394,7 @@ export function startAgentHost(): void {
       const result = await handler((params ?? {}) as Record<string, unknown>, client);
       window.openroll.agent?.reply(callId, { id: callId, result });
     } catch (err) {
-      window.openroll.agent?.reply(callId, { id: callId, error: { message: (err as Error).message || String(err) } });
+      window.openroll.agent?.reply(callId, { id: callId, error: { message: nativeMessage(err, String(err)) } });
     }
   });
 }

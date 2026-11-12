@@ -3,6 +3,7 @@ import type { Project } from "../../core/project";
 import { Exporter, type ExportProgress } from "../../engine/exporter";
 import type { ExportSettings } from "../../engine/export-protocol";
 import type { AiSync } from "../../engine/ai/protocol";
+import { nativeMessage } from "../platform/native-error";
 
 export type Prepare = (onProgress: (label: string, done: number, total: number) => void) => Promise<AiSync[]>;
 
@@ -131,7 +132,7 @@ class ExportQueue {
     } catch (err) {
       // A file that will not delete must not leave the job stuck as running.
       await window.openroll.closeWriter(next.writerId, true).catch(() => {});
-      const message = (err as Error).message;
+      const message = nativeMessage(err, "The export stopped.");
       if (message === "cancelled") this.items = this.items.filter(i => i !== next);
       else Object.assign(next.job, { status: "error", error: message });
     } finally {
