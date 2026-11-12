@@ -1,0 +1,239 @@
+# Builds the Android APK. Manual and on every push that touches the Android layer, so the
+# web bundle, the Java plugin and the Gradle config are all proven together, not one at a time.
+name: android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "scripts/build-android.mjs"
+      - "scripts/make-android-icons.mjs"
+      - "scripts/java-check/**"
+      - "scripts/check-permissions.mjs"
+      - "test/**"
+      - "src/**"
+      - "package.json"
+      - "vite.config.ts"
+      - ".github/workflows/android-apk.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "scripts/build-android.mjs"
+      - "src/**"
+      - "package.json"
+      - "vite.config.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      # Electron and ffmpeg are desktop-only; skipping them cuts install time and disk.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      OPENROLL_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0 platform-tools"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Renderer and plugin agree on the bridge
+        run: node scripts/check-bridge.mjs
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Permissions are declared
+        run: node scripts/check-permissions.mjs
+
+      # Selection order and native error messages are behaviour, not types: they type-check
+      # perfectly while being wrong, so they are covered by tests.
+      - name: Unit tests
+        run: ./node_modules/.bin/vitest run
+
+      - name: Version name
+        run: echo "OPENROLL_VERSION_NAME=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+
+      - name: Web bundle
+        run: npm run android:web
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      # The debug build is only for a person who wants an unshrunk APK to read stack traces
+      # from. Building it on every push doubled the job for an artifact nothing installed; the
+      # release build below is the one that ships and the one whose contents are checked.
+      - name: Debug APK
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd android
+          set +e
+          ./gradlew assembleDebug --no-daemon --stacktrace --warning-mode=summary 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Logs are only readable in the UI; annotations come back through the API too, which
+            # is what an agent iterating on this workflow can see.
+            grep -nE "^(e: |.*error:|What went wrong|Caused by|> Task .*FAILED|FAILURE:)" "$RUNNER_TEMP/gradle.log" \
+              | head -25 | while IFS= read -r line; do echo "::error ::$line"; done
+          fi
+          exit "$status"
+
+      - name: Release APK
+        env:
+          OPENROLL_KEYSTORE: ${{ github.workspace }}/release.keystore
+          OPENROLL_KEYSTORE_PASSWORD: ${{ secrets.OPENROLL_KEYSTORE_PASSWORD }}
+          OPENROLL_KEY_ALIAS: ${{ secrets.OPENROLL_KEY_ALIAS }}
+          OPENROLL_KEY_PASSWORD: ${{ secrets.OPENROLL_KEY_PASSWORD }}
+        run: |
+          if [ -n "$OPENROLL_KEYSTORE_PASSWORD" ]; then
+            echo "${{ secrets.OPENROLL_KEYSTORE_BASE64 }}" | base64 -d > "$OPENROLL_KEYSTORE"
+          fi
+          cd android
+          set +e
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-release.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            grep -nE "^(e: |.*error:|What went wrong|Caused by|> Task .*FAILED|FAILURE:)" "$RUNNER_TEMP/gradle-release.log" \
+              | head -25 | while IFS= read -r line; do echo "::error ::$line"; done
+          fi
+          exit "$status"
+
+      - name: Collect APKs
+        run: |
+          mkdir -p apk
+          i=0
+          for f in $(find android/app/build/outputs/apk -name '*.apk'); do
+            i=$((i + 1))
+            case "$f" in
+              *release*) cp "$f" "apk/motion-release.apk" ;;
+              *) cp "$f" "apk/motion-debug.apk" ;;
+            esac
+          done
+          [ "$i" -gt 0 ] || { echo "::error ::no APK was produced"; exit 1; }
+          ls -la apk
+
+      # The APK is the deliverable, and a build that "succeeds" while shipping the wrong thing
+      # is the failure mode this port kept hitting (the export worker was pruned for a while).
+      # Check the contents here, where the numbers also land in the job summary.
+      - name: Check APK contents
+        env:
+          OPENROLL_KEYSTORE_PASSWORD: ${{ secrets.OPENROLL_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # motion-release.apk is released first: it is the shrunk, installable build. It is
+          # signed with the debug key unless OPENROLL_KEYSTORE secrets are set, which still
+          # installs fine but fails Play upload validation.
+          APK=apk/motion-release.apk
+          [ -f "$APK" ] || APK=apk/motion-debug.apk
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          AAPT=$(find "$SDK_ROOT/build-tools" -name aapt2 | sort -V | tail -1)
+          # apksigner lives in build-tools and is not put on PATH by setup-android, so find it.
+          APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner | sort -V | tail -1)
+          echo "apksigner: ${APKSIGNER:-not found}"
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "$APK" | head -4
+            "$APKSIGNER" verify "$APK" || { echo "::error ::$APK does not verify"; exit 1; }
+          else
+            echo "::warning ::no apksigner in the SDK; skipping signature verification"
+          fi
+
+          KB=$(du -k "$APK" | cut -f1)
+          JS=$(unzip -l "$APK" | grep -c 'assets/public/assets/.*\.js$' || true)
+          FONTS=$(unzip -l "$APK" | grep -c 'assets/public/assets/.*\.woff2$' || true)
+          {
+            echo "### APK"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| file | \`$(basename "$APK")\` |"
+            echo "| size | $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB |"
+            echo "| js assets | $JS |"
+            echo "| fonts | $FONTS |"
+            echo ""
+            echo "| bundled worker / worklet | KB |"
+            echo "|---|---|"
+            unzip -l "$APK" | grep 'assets/public/assets/' | grep -E 'worker|worklet|index-' \
+              | awk '{printf "| %s | %d |\n", $4, $1/1024}' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # The workers and the audio worklet are the difference between an editor and a viewer.
+          # Missing one is a build bug, not a packaging choice.
+          for needed in export.worker media.worker preview.worker dsp.worklet index-; do
+            if ! unzip -l "$APK" | grep -q "assets/public/assets/$needed"; then
+              echo "::error ::$needed is missing from the APK's web assets"
+              exit 1
+            fi
+          done
+          # The APK's identity is the thing a rename can silently miss: a stale
+          # applicationId still installs, just as a second app.
+          #
+          # Read the whole badging and pick the two lines out of it by name. The first version of
+          # this check used `head -12`, which was wrong twice over: it cut the package line off
+          # before the label could match at all, and once fixed it kept working only for as long
+          # as the app declared few enough permissions — three more pushed the label past line 12
+          # and broke a build whose APK was perfectly correct.
+          BADGING=$("$AAPT" dump badging "$APK" 2>/dev/null || true)
+          PACKAGE_LINE=$(printf '%s\n' "$BADGING" | grep -m1 '^package: ' || true)
+          LABEL_LINE=$(printf '%s\n' "$BADGING" | grep -m1 '^application-label:' || true)
+          echo "${PACKAGE_LINE:-package: none}"
+          echo "label: ${LABEL_LINE:-none}"
+          case "$PACKAGE_LINE" in
+            *"name='com.motion.official'"*) ;;
+            *) echo "::error ::APK package is not com.motion.official: ${PACKAGE_LINE:-none}"; exit 1 ;;
+          esac
+          case "$LABEL_LINE" in
+            *"'Motion'"*) ;;
+            *) echo "::error ::APK label is not Motion: ${LABEL_LINE:-none}"; exit 1 ;;
+          esac
+
+          # Reading the gallery needs these at runtime. Capacitor refuses to request a permission
+          # that is not declared, and Android cannot grant one that is not declared, so a missing
+          # entry here means the gallery never opens — silently, on the device only. Reading the
+          # APK rather than the source is deliberate: the manifest merger can drop an entry.
+          MANIFEST_PERMS=$("$AAPT" dump permissions "$APK" 2>/dev/null || true)
+          echo "$MANIFEST_PERMS"
+          for perm in READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_EXTERNAL_STORAGE; do
+            case "$MANIFEST_PERMS" in
+              *"android.permission.$perm"*) ;;
+              *) echo "::error ::$perm is not declared in the APK; the gallery cannot be granted"; exit 1 ;;
+            esac
+          done
+
+          echo "web assets complete"
+          if [ -n "${OPENROLL_KEYSTORE_PASSWORD:-}" ] && [ "$APK" = apk/motion-release.apk ]; then
+            echo "signed with the release keystore" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "signed with the debug keystore (installs, but Play will reject it)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "::notice ::$(basename "$APK") is $((KB / 1024)).$(( (KB % 1024) * 10 / 1024 )) MB with $JS js assets and $FONTS fonts"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motion-apk
+          path: apk/*.apk
+          retention-days: 30
+          if-no-files-found: error

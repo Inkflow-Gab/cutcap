@@ -1,0 +1,15 @@
+package com.getcapacitor.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/** Stub. See ../../../README.md. */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface CapacitorPlugin {
+    String name() default "";
+
+    Permission[] permissions() default {};
+}

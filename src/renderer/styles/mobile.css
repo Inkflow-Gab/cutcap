@@ -1,0 +1,881 @@
+/*
+ * Phone and tablet layout for the Android build.
+ *
+ * The desktop editor is a four column grid built around a pointer and a 27 inch screen. A
+ * phone has neither: one column, a drawer for the library, the inspector in a sheet, and
+ * thumb sized targets. Everything below is scoped to coarse pointers and narrow screens, so
+ * a tablet with a keyboard, and every desktop window, keeps the layout the app was designed
+ * with. Nothing here changes what the editor does, only where the panels sit.
+ */
+
+/* Touch devices: no hover to reveal affordances, no text selection, no 300ms tap delay. */
+@media (pointer: coarse) {
+  button, .iconbtn, .chip, .seg button, .tabs button, .rail button, .textbtn, .export, .home-shape, .home-card {
+    touch-action: manipulation;
+  }
+  /* Things desktop reveals on hover are always visible on a phone, dimmed until used. */
+  .tile-add, .tile-remove, .tl-head-tools { opacity: 1; }
+  .clip { cursor: default; }
+  /* A 30px icon button is a hard tap; give every control a real target. */
+  .iconbtn { width: 40px; height: 40px; }
+  .iconbtn.sm { width: 30px; height: 30px; }
+  .export { height: 36px; padding: 0 16px; }
+  .textbtn { padding: 9px 10px; }
+  .seg button { padding: 9px 10px; }
+  .tabs button { padding: 11px 12px 12px; }
+  .switch { width: 42px; height: 25px; border-radius: 13px; }
+  .switch::after { width: 19px; height: 19px; }
+  .switch.on::after { transform: translateX(17px); }
+  .slider { height: 28px; }
+  .slider-track, .slider-fill { top: 13px; }
+  .slider-knob { top: 5px; width: 18px; height: 18px; margin-left: -9px; }
+  .chip { padding: 7px 12px; }
+  .swatch { width: 30px; height: 30px; }
+  /* The timeline is dragged with a finger, so a clip's body is one big grab area. */
+  .tl-bar { padding: 8px 10px; }
+  .tl-ruler-row { height: 32px; }
+  .tl-head { width: 104px; }
+  .tl-corner { width: 104px; }
+}
+
+/* ---------- phones and small tablets, portrait and landscape */
+
+@media (max-width: 820px) {
+  :root {
+    /* Safe areas, filled by the Android activity's inset listener. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  body { font-size: 13.5px; }
+
+  /* --- home */
+  .home-bar {
+    height: 56px;
+    padding: 0 12px;
+    padding-top: var(--safe-top);
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    box-sizing: content-box;
+  }
+  /* A phone has no window controls to leave room for. */
+  :root[data-platform="android"] .home-bar { padding-left: calc(12px + var(--safe-left)); padding-right: calc(12px + var(--safe-right)); }
+  .home-bar .credit { display: none; }
+  .home-main { padding: 18px 14px 40px; }
+  .home-shapes { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+  .home-shape { min-height: 112px; }
+  .home-hint { display: none; }
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 14px 12px !important; }
+  .home-projects h2 { margin-top: 26px; }
+  /* The "..." on a project card is hover-only on desktop; a phone cannot hover. */
+  .home-more { opacity: 1; width: 34px; height: 34px; }
+
+  /* --- editor: one column, viewer on top, timeline at the bottom */
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: calc(52px + var(--safe-top)) minmax(0, 44%) minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "viewer"
+      "tl";
+    gap: 1px;
+  }
+  .top, :root[data-platform="android"] .top, :root[data-platform="darwin"] .top, :root[data-platform="win32"] .top, :root[data-platform="linux"] .top {
+    padding: 0 6px 0 10px;
+    padding-top: var(--safe-top);
+    height: auto;
+    min-height: calc(52px + var(--safe-top));
+    gap: 8px;
+    box-sizing: border-box;
+  }
+  .top .proj-name { max-width: 34vw; }
+  .top .saved { display: none; }
+  /* Undo, redo, history and ratio live in the command bar on a phone; the top bar keeps
+     the essentials: back home, project name, export, and the library button below. */
+  .top .ratio { display: none; }
+  .top-actions { gap: 2px; }
+  .top-actions .iconbtn[title^="Undo"], .top-actions .iconbtn[title^="Redo"] { display: none; }
+  .agent-chip-wrap { display: none; }
+
+  .viewer { grid-area: viewer; }
+  .viewer-stage { padding: 8px 10px 4px; }
+  .viewer-controls { padding: 0 10px calc(6px + var(--safe-bottom)); gap: 6px; }
+  .viewer-controls .tc { font-size: 12px; }
+  .viewer-right .iconbtn { width: 36px; height: 36px; }
+  .play { width: 44px; height: 44px; }
+
+  /* The library becomes a bottom sheet: a tab row that slides up over the timeline. */
+  .rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    height: calc(58px + var(--safe-bottom));
+    padding: 0 2px var(--safe-bottom);
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--chrome);
+    border-top: 1px solid var(--line);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail button { width: auto; min-width: 60px; height: 52px; flex: none; font-size: 10.5px; }
+  .rail-bead { display: none; }
+
+  /* Panels open above the rail as a sheet, so choosing a clip effect does not hide the
+     timeline. `--sheet` height keeps the viewer visible behind it. */
+  .lib {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(58px + var(--safe-bottom));
+    height: min(52vh, 460px);
+    z-index: 29;
+    background: var(--pane);
+    border-top: 1px solid var(--line-strong);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.28s var(--ease-out);
+  }
+  /* The panel is only as tall as what is in it when it is short. */
+  .lib .media-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .panel-head { padding: 10px 12px 8px 14px; }
+  .panel-head h2 { font-size: 14px; }
+  .text-grid, .fx-grid { gap: 10px; }
+
+  /* The inspector is a full sheet over everything, opened from the timeline's tools. */
+  .insp {
+    position: fixed;
+    inset: 0;
+    z-index: 34;
+    background: var(--pane);
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    transform: translateY(100%);
+    transition: transform 0.3s var(--ease-out);
+    visibility: hidden;
+  }
+  .editor[data-sheet="insp"] .insp { transform: translateY(0); visibility: visible; }
+  .insp .tabs { overflow-x: auto; scrollbar-width: none; }
+  .insp .tabs::-webkit-scrollbar { display: none; }
+  .insp-body { padding-bottom: 90px; }
+
+  /* Opening the inspector's sheet from the timeline. */
+  .phone-fab {
+    position: fixed;
+    right: 14px;
+    /* Above the editing toolbar, which now owns the strip above the rail. */
+    bottom: calc(196px + var(--safe-bottom));
+    z-index: 26;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 20px;
+    background: #2a2a2e;
+    color: var(--ink);
+    box-shadow: var(--shadow-lift);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .phone-fab:active { transform: scale(0.96); }
+
+  /* The library sheet slides in and out instead of appearing. */
+  .lib[data-open="false"] { transform: translateY(calc(100% + 60px)); pointer-events: none; }
+
+  /* The inspector's own close row: a Done button, added by the app. */
+  .insp-close {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    padding-top: calc(10px + var(--safe-top));
+    border-bottom: 1px solid var(--line);
+    background: var(--chrome);
+  }
+  .insp-close b { font-size: 15px; font-weight: 600; }
+  .insp-close .export { height: 34px; }
+
+  /* --- timeline */
+  /* Room for the rail plus the editing toolbar that sits on top of it. */
+  .tl { padding-bottom: calc(110px + var(--safe-bottom)); }
+  .tl-bar .zoom { display: none; }
+  .tl-bar .textbtn { font-size: 12px; }
+  .tl-ruler-canvas { }
+  /* A ruler that is a sentence tall and a playhead with a head you can see. */
+  .tl-playhead::after { width: 15px; height: 17px; margin-left: -7.5px; }
+
+  /* --- dialogs become sheets that fit the screen */
+  .modal-back { align-items: end; padding: 0; }
+  .modal, .modal-wide, .modal-narrow {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100vh - var(--safe-top) - 28px);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: var(--safe-bottom);
+    animation: sheet-in 0.3s var(--ease-out);
+  }
+  @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+  .modal-body { padding: 10px 16px 18px; }
+  .modal-actions { flex-wrap: wrap; }
+  .modal-actions .export, .modal-actions .textbtn { flex: 1; justify-content: center; height: 42px; }
+  .modal[aria-label="Export"] { max-height: calc(100vh - var(--safe-top)); }
+
+  /* Fields get a full-width layout instead of label / control / value columns. */
+  .field { grid-template-columns: minmax(0, 1fr) 76px; gap: 8px 10px; }
+  .field-value, .field-input { min-width: 44px; }
+  .modal-row { grid-template-columns: 1fr; gap: 4px; }
+
+  .news-popup, .inbox-panel, .update-notice { width: calc(100vw - 24px); }
+  .update-notice { left: 12px; bottom: calc(12px + 58px + var(--safe-bottom)); }
+  .inbox-panel { max-height: 70vh; }
+  .font-list { max-height: 46vh; }
+  /* Toasts sit above the library rail rather than under the thumb, where the playhead is. */
+  /* Clear of the rail and the editing toolbar. */
+  .toasts { bottom: calc(120px + var(--safe-bottom)); width: calc(100vw - 24px); }
+  .toast { max-width: 100%; }
+  .ctx-menu { font-size: 14.5px; min-width: 240px; }
+  .ctx-menu button { padding: 13px 14px; }
+}
+
+/* Landscape phones: the viewer needs the height, the timeline can give some up. */
+@media (max-width: 820px) and (orientation: landscape) {
+  .editor {
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: calc(48px + var(--safe-top)) minmax(0, 1fr) minmax(120px, 34%);
+    grid-template-areas:
+      "top top"
+      "viewer viewer"
+      "tl tl";
+  }
+  .lib { height: min(70vh, 380px); }
+  .rail { height: calc(50px + var(--safe-bottom)); }
+  .rail button { height: 44px; min-width: 54px; }
+  .tl { padding-bottom: calc(102px + var(--safe-bottom)); }
+}
+
+/* Tablets: keep two panes, the console can breathe. */
+@media (min-width: 821px) and (pointer: coarse) {
+  .editor {
+    grid-template-columns: 72px minmax(220px, 280px) minmax(0, 1fr) minmax(240px, 300px);
+  }
+  .rail button { width: 72px; height: 60px; }
+}
+
+/* ---------- phone home screen
+ *
+ * The desktop home is a marketing page: two large choices and a grid of projects. A phone's home
+ * is the launchpad for the app, so it leads with one unmissable action and keeps the tools a tab
+ * away, with a bottom bar for the three places worth being.
+ */
+@media (max-width: 820px) {
+  .phome {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--pane-1);
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .phome-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(var(--safe-top) + 10px) 16px 8px;
+    flex: none;
+  }
+  .phome-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 650;
+    font-size: 16.5px;
+    letter-spacing: -0.02em;
+  }
+  .phome-brand svg { color: var(--accent); }
+  .phome-bar-actions { display: flex; gap: 4px; }
+  .phome-icon {
+    position: relative;
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border: 0; border-radius: 10px;
+    background: transparent; color: var(--ink-2);
+    cursor: pointer;
+  }
+  .phome-icon:active { background: var(--pane-2); }
+  .phome-dot {
+    position: absolute; top: 9px; right: 9px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .phome-main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 16px calc(18px + var(--safe-bottom) + 58px);
+  }
+
+  /* One large target: the thing this screen is for. */
+  .phome-new {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    padding: 26px 16px;
+    margin: 8px 0 22px;
+    border: 0;
+    border-radius: 18px;
+    background: linear-gradient(150deg, #2c5fd4 0%, #4b8bf5 55%, #6aa4ff 100%);
+    color: #fff;
+    cursor: pointer;
+  }
+  .phome-new:active { transform: scale(0.985); }
+  .phome-new-plus {
+    display: grid; place-items: center;
+    width: 46px; height: 46px;
+    margin-bottom: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .phome-new b { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+  .phome-new small { font-size: 12.5px; opacity: 0.86; }
+
+  .phome-recent h2, .phome-tools h2, .phome-me h2 {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 10px;
+    font-size: 14px; font-weight: 600;
+    color: var(--ink-2);
+    text-transform: none;
+  }
+  .phome-count {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--pane-2);
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .phome-empty, .phome-hint, .phome-version {
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-3, var(--ink-2));
+  }
+  .phome-error { color: var(--danger, #f05a5a); font-size: 13px; }
+
+  /* Projects: a list, because a grid of thumbnails wastes a narrow screen. */
+  .phome-list { display: grid; gap: 8px; }
+  .phome-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-2);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .phome-card:active { background: var(--pane-3); }
+  .phome-card > svg { color: var(--ink-3, var(--ink-2)); flex: none; }
+  .phome-thumb {
+    flex: none;
+    width: 62px; height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    display: block;
+  }
+  .phome-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .phome-card-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .phome-card-text b { font-size: 14.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .phome-card-text small { font-size: 12px; color: var(--ink-2); }
+
+  /* Tools: a grid of thumb sized squares, the shape a phone editor uses for its actions. */
+  .phome-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .phome-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 84px;
+    padding: 11px 4px 8px;
+    border: 0;
+    border-radius: 13px;
+    background: var(--pane-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .phome-tool:active { background: var(--pane-3); }
+  .phome-tool-icon {
+    display: grid; place-items: center;
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--pane-3);
+    color: var(--accent);
+  }
+  .phome-tool-label {
+    font-size: 11.5px;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .phome-tool small { font-size: 10.5px; color: var(--ink-3, var(--ink-2)); }
+
+  .phome-me .phome-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 15px 14px;
+    margin-bottom: 8px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-2);
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .phome-row span { flex: 1; text-align: left; }
+  .phome-row > svg:first-child { color: var(--accent); }
+
+  .phome-tabs {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: calc(56px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: color-mix(in srgb, var(--pane-1) 92%, transparent);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid var(--line);
+  }
+  .phome-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+  .phome-tab.on { color: var(--accent); }
+
+  .phome-inbox {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .phome-inbox > div { width: 100%; max-width: 420px; }
+}
+
+/* ---------- phone editing toolbar
+ *
+ * The six actions a person reaches for while cutting, along the bottom where a thumb is. The
+ * desktop reaches these through the keyboard, which a phone does not have.
+ */
+@media (max-width: 820px) {
+  .phone-tools {
+    position: fixed;
+    left: 0; right: 0;
+    /* Directly above the library rail, which remains the app's bottom bar. Below the
+       library sheet's z-index, so opening a panel covers it instead of stacking on top. */
+    bottom: calc(58px + var(--safe-bottom));
+    z-index: 24;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: color-mix(in srgb, var(--pane-1) 94%, transparent);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  .phone-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 50px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .phone-tool:disabled { opacity: 0.34; }
+  .phone-tool:not(:disabled):active { background: var(--pane-2); color: var(--ink); }
+  .phone-tool-danger:not(:disabled) { color: #f07575; }
+
+  .phone-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .phone-sheet {
+    width: 100%;
+    padding: 20px 18px calc(20px + var(--safe-bottom));
+    border-radius: 18px 18px 0 0;
+    background: var(--pane-2);
+    color: var(--ink);
+  }
+  .phone-sheet h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+  .phone-speed-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .phone-speed {
+    padding: 15px 0;
+    border: 0;
+    border-radius: 12px;
+    background: var(--pane-3);
+    color: var(--ink);
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .phone-speed:active { background: var(--accent); color: var(--accent-ink); }
+  .phone-sheet-note { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+  .phone-sheet-close {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    border: 0; border-radius: 12px;
+    background: var(--pane-3);
+    color: var(--ink-2);
+    font-size: 14.5px;
+    cursor: pointer;
+  }
+}
+
+/* The empty preview on a phone offers a button, because there is nothing to drag. */
+@media (max-width: 820px) {
+  .viewer-empty-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 22px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 15px;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .viewer-empty-add:active { transform: scale(0.97); }
+  .viewer-empty-note {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+}
+
+/* ---------- offline notice
+ *
+ * The editor is local, so being offline changes nothing; the banner says so once instead of
+ * letting a panel sit on a request that will never finish.
+ */
+.offline-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  top: calc(8px + var(--safe-top));
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--pane-2);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.offline-banner svg { color: #e0a33a; flex: none; }
+.offline-banner span { flex: 1; }
+.offline-banner button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* ---------- gallery picker
+ *
+ * The grid is the point: a phone editor is expected to show the phone's own pictures, with no
+ * file browser in between. Selection numbers are visible so "first" is a fact about the order the
+ * person tapped, not about the order a list happened to be in.
+ */
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  background: var(--pane-1);
+  color: var(--ink);
+}
+
+.gallery-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(var(--safe-top) + 6px) 10px 6px;
+  flex: none;
+}
+.gallery-close, .gallery-sort {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink-2);
+  cursor: pointer;
+}
+.gallery-close:active, .gallery-sort:active { background: var(--pane-2); }
+.gallery-tabs {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.gallery-tabs button {
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.gallery-tabs button.on { background: var(--pane-2); color: var(--ink); }
+
+/* Albums: a scrolling row, never wrapping, so the grid below keeps its height. */
+.gallery-albums {
+  display: flex;
+  gap: 10px;
+  padding: 4px 12px 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+.gallery-albums::-webkit-scrollbar { display: none; }
+.gallery-album {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 66px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.gallery-album-cover {
+  display: grid;
+  place-items: center;
+  width: 62px; height: 62px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--pane-2);
+  border: 2px solid transparent;
+}
+.gallery-album-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-album.on .gallery-album-cover { border-color: var(--accent); }
+.gallery-album.on { color: var(--ink); }
+.gallery-album-name {
+  max-width: 66px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gallery-album small { font-size: 10px; color: var(--ink-3, var(--ink-2)); }
+
+.gallery-status {
+  flex: none;
+  margin: 0 12px 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.gallery-error { margin: 0 12px 6px; font-size: 12.5px; color: var(--danger, #f05a5a); }
+.gallery-loading { margin: 18px 12px; font-size: 13px; color: var(--ink-2); }
+
+/* Three across: big enough to recognise a photo on a phone, dense enough to browse. */
+.gallery-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 0 2px 96px;
+}
+.gallery-tile {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: #000;
+  cursor: pointer;
+  overflow: hidden;
+}
+.gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-tile.on { outline: 3px solid var(--accent); outline-offset: -3px; }
+.gallery-tile.on img { opacity: 0.72; }
+/* The tap order, so the first clip is visibly first. */
+.gallery-order {
+  position: absolute;
+  top: 5px; right: 5px;
+  display: grid;
+  place-items: center;
+  min-width: 21px; height: 21px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.gallery-play {
+  position: absolute;
+  left: 5px; bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.gallery-foot {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px calc(10px + var(--safe-bottom));
+  background: color-mix(in srgb, var(--pane-1) 94%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--line);
+}
+.gallery-count { flex: 1; font-size: 12.5px; color: var(--ink-2); }
+.gallery-files {
+  flex: none;
+  padding: 11px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.gallery-add {
+  flex: none;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gallery-add:disabled { opacity: 0.4; }
+.gallery-add:not(:disabled):active { transform: scale(0.97); }
+
+@media (min-width: 560px) {
+  .gallery-grid { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* The chosen strip: small thumbnails in the order they will land on the timeline. */
+.gallery-picked {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gallery-picked::-webkit-scrollbar { display: none; }
+.gallery-chip {
+  position: relative;
+  flex: none;
+  width: 44px; height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--pane-2);
+  cursor: pointer;
+}
+.gallery-chip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-chip-n {
+  position: absolute;
+  left: 2px; top: 2px;
+  display: grid;
+  place-items: center;
+  min-width: 16px; height: 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-blocked {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px 32px 80px;
+  text-align: center;
+}
+.gallery-blocked p { margin: 0; max-width: 34ch; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+
+/* A row the system cannot render: deleted, on a removed card, or an unreadable format. */
+.gallery-broken {
+  display: grid;
+  place-items: center;
+  width: 100%; height: 100%;
+  color: color-mix(in srgb, var(--ink-2) 70%, transparent);
+  background: var(--pane-2);
+}
+.gallery-blocked-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }

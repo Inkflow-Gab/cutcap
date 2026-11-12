@@ -1,0 +1,85 @@
+import { useEffect, useState } from "react";
+import type { Editor } from "../state/editor";
+import type { MediaCache } from "../state/media-cache";
+import { Icon, type IconName } from "./kit/Icon";
+import { AudioPanel } from "./panels/AudioPanel";
+import { CaptionsPanel } from "./captions/CaptionsPanel";
+import { MediaPanel } from "./panels/MediaPanel";
+import { TextPanel } from "./panels/TextPanel";
+import { EffectsPanel } from "./panels/EffectsPanel";
+import { FiltersPanel } from "./panels/FiltersPanel";
+import { TransitionsPanel } from "./panels/TransitionsPanel";
+import { StickersPanel } from "./panels/StickersPanel";
+import { SmartPanel } from "./panels/SmartPanel";
+import { TemplatesPanel } from "./panels/TemplatesPanel";
+import { railEvents } from "../state/smart-events";
+
+const TABS: { id: string; label: string; icon: IconName }[] = [
+  { id: "media", label: "Media", icon: "media" },
+  { id: "audio", label: "Audio", icon: "audio" },
+  { id: "text", label: "Text", icon: "text" },
+  { id: "captions", label: "Captions", icon: "captions" },
+  { id: "transitions", label: "Transitions", icon: "transitions" },
+  { id: "filters", label: "Filters", icon: "filters" },
+  { id: "effects", label: "Effects", icon: "effects" },
+  { id: "stickers", label: "Stickers", icon: "shapes" },
+  { id: "templates", label: "Templates", icon: "templates" },
+  { id: "smart", label: "Smart", icon: "wand" },
+];
+
+export function Library({ editor, cache, sheet = false, open = true, onOpen }: {
+  editor: Editor;
+  cache: MediaCache;
+  /** The phone layout shows the library as a sheet over the timeline. */
+  sheet?: boolean;
+  open?: boolean;
+  onOpen?(open: boolean): void;
+}) {
+  const [tab, setTab] = useState("media");
+  const index = TABS.findIndex(t => t.id === tab);
+  useEffect(() => {
+    const show = (e: Event) => {
+      setTab((e as CustomEvent<string>).detail);
+      onOpen?.(true);
+    };
+    railEvents.addEventListener("show", show);
+    return () => railEvents.removeEventListener("show", show);
+  }, [onOpen]);
+  return (
+    <>
+      <nav className="rail" aria-label="Library">
+        <span className="rail-bead" style={{ transform: `translateY(${index * 58}px)` }} />
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            aria-selected={t.id === tab && (!sheet || open)}
+            onClick={() => {
+              // Tapping the tab you are already in puts the sheet away, which is how a phone
+              // gets the timeline back without any extra control.
+              if (sheet && open && t.id === tab) onOpen?.(false);
+              else {
+                setTab(t.id);
+                onOpen?.(true);
+              }
+            }}
+          >
+            <Icon name={t.icon} size={sheet ? 22 : 20} />
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <section className="pane lib" data-open={sheet ? String(open) : undefined} aria-hidden={sheet && !open ? true : undefined} inert={sheet && !open ? true : undefined}>
+        {tab === "media" && <MediaPanel editor={editor} cache={cache} />}
+        {tab === "audio" && <AudioPanel editor={editor} />}
+        {tab === "text" && <TextPanel editor={editor} />}
+        {tab === "captions" && <CaptionsPanel editor={editor} />}
+        {tab === "transitions" && <TransitionsPanel editor={editor} />}
+        {tab === "filters" && <FiltersPanel editor={editor} />}
+        {tab === "effects" && <EffectsPanel editor={editor} />}
+        {tab === "stickers" && <StickersPanel editor={editor} />}
+        {tab === "templates" && <TemplatesPanel editor={editor} />}
+        {tab === "smart" && <SmartPanel editor={editor} cache={cache} />}
+      </section>
+    </>
+  );
+}

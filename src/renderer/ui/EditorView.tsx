@@ -1,0 +1,97 @@
+import { useEffect, useMemo, useState } from "react";
+import type { Editor } from "../state/editor";
+import { MediaCache } from "../state/media-cache";
+import { derived } from "../state/derived-media";
+import { checkMissing } from "../state/relink";
+import { useSettings } from "../state/settings";
+import { useAutoAnalysis } from "../state/auto-analyze";
+import { useCaptionOffer } from "../state/caption-offer";
+import { useAiBackground } from "../state/ai";
+import { useShortcuts } from "../state/shortcuts";
+import { startTemplateDrops } from "../state/templates";
+import { Inspector } from "./Inspector";
+import { Library } from "./Library";
+import { Timeline } from "./timeline/Timeline";
+import { Toasts } from "./Toasts";
+import { TopBar } from "./TopBar";
+import { Viewer } from "./Viewer";
+import { ExportDialog } from "./ExportDialog";
+import { ShortcutSheet } from "./ShortcutSheet";
+import { CommandBar } from "./CommandBar";
+import { HistoryPanel } from "./HistoryPanel";
+import { PhoneTools } from "./PhoneTools";
+import { GalleryPicker } from "./GalleryPicker";
+import { importFiles } from "../state/importer";
+import { VersionsDialog } from "./VersionsDialog";
+import { agentContext } from "../agent/host";
+import { useLayout } from "../lib/layout";
+
+export function EditorView({ editor, onClose }: { editor: Editor; onClose(): void }) {
+  const cache = useMemo(() => new MediaCache(m => derived.decodeUrl(m)), []);
+  const [exporting, setExporting] = useState(false);
+  // The phone layout: the library is a sheet over the timeline and the inspector is a sheet
+  // over everything. Both start closed so the first screen is the picture and the timeline.
+  const phone = useLayout().phone;
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  // The gallery sheet, opened by Add media on a phone.
+  const [galleryOpen, setGalleryOpen] = useState<"image" | "video" | null>(null);
+  const proxyMode = useSettings().proxyMode;
+  useEffect(() => {
+    agentContext.cache = cache;
+    return () => {
+      if (agentContext.cache === cache) agentContext.cache = null;
+      cache.dispose();
+    };
+  }, [cache]);
+  useEffect(() => {
+    const stop = derived.subscribe(() => cache.refresh());
+    return () => void stop();
+  }, [cache]);
+  // On open: find missing files, pick up copies made earlier, and start any a reopened project still needs.
+  useEffect(() => {
+    derived.start();
+    void checkMissing(editor).then(() => derived.restore(Object.values(editor.project.media)));
+  }, [editor, proxyMode]);
+  useEffect(() => startTemplateDrops(editor), [editor]);
+  useAutoAnalysis(editor, cache);
+  useCaptionOffer(editor);
+  useAiBackground(editor);
+  useShortcuts(editor, { onExport: () => setExporting(true), onHome: onClose });
+
+  return (
+    <div className="editor" data-sheet={phone && inspectorOpen ? "insp" : undefined}>
+      <TopBar editor={editor} onHome={onClose} onExport={() => setExporting(true)} />
+      <Library editor={editor} cache={cache} sheet={phone} open={libraryOpen} onOpen={setLibraryOpen} />
+      <Viewer editor={editor} />
+      <Inspector editor={editor} phone={phone} onClose={() => setInspectorOpen(false)} />
+      {phone && (
+        <button className="phone-fab" onClick={() => setInspectorOpen(true)} aria-label="Clip settings">
+          Settings
+        </button>
+      )}
+      <Timeline editor={editor} cache={cache} />
+      {phone && <PhoneTools editor={editor} onAddMedia={kind => setGalleryOpen(kind)} />}
+      {galleryOpen && (
+        <GalleryPicker
+          kind={galleryOpen}
+          onClose={() => setGalleryOpen(null)}
+          onBrowseFiles={() => {
+            setGalleryOpen(null);
+            void window.openroll.pickMedia().then(f => (f.length ? importFiles(editor, f) : undefined));
+          }}
+          onPicked={files => {
+            setGalleryOpen(null);
+            void importFiles(editor, files);
+          }}
+        />
+      )}
+      <Toasts editor={editor} />
+      <ShortcutSheet />
+      <CommandBar editor={editor} hooks={{ onExport: () => setExporting(true) }} />
+      <HistoryPanel editor={editor} />
+      <VersionsDialog editor={editor} />
+      {exporting && <ExportDialog editor={editor} onClose={() => setExporting(false)} />}
+    </div>
+  );
+}

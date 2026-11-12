@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+resources/ffmpeg/
+qa/shots/
+*.log
+.DS_Store
+.vercel
+_site
+.env*
